@@ -47,7 +47,7 @@ class AuthController extends Controller
 
         return $request->user()->must_change_password
             ? redirect()->route('password.change')
-            : redirect()->intended(in_array($request->user()->role, ['superadmin', 'admin', 'moderator'], true) ? route('admin.dashboard') : route('home'));
+            : redirect()->intended(in_array($request->user()->role, ['superadmin', 'admin', 'moderator'], true) ? route('admin.dashboard') : route('league.index'));
     }
 
     public function createUser(Request $request): RedirectResponse
