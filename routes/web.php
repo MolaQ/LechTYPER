@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\AdminLeagueController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::get('/', [LeagueController::class, 'home'])->name('home');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::get('/login/admin', fn () => redirect()->route('login'));
 Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
@@ -15,6 +17,9 @@ Route::post('/haslo/reset', [AuthController::class, 'resetPassword'])->name('pas
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 Route::view('/admin', 'admin')->name('admin.dashboard')->middleware(['auth', 'admin']);
 Route::middleware('auth')->group(function (): void {
+    Route::get('/liga', fn () => redirect()->to(route('home').'#liga'))->name('league.index');
+    Route::post('/liga/mecze/{match}/typ', [LeagueController::class, 'submitSelection'])->name('league.selection.store');
+    Route::post('/admin/liga/mecze/{match}/rozlicz', [AdminLeagueController::class, 'completeMatch'])->name('admin.league.matches.complete')->middleware('admin');
     Route::get('/haslo/zmien', [AuthController::class, 'showChangePassword'])->name('password.change');
     Route::post('/haslo/zmien', [AuthController::class, 'changePassword'])->name('password.update');
     Route::view('/profil', 'profile')->name('profile');
