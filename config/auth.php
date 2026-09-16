@@ -114,4 +114,9 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    'admin' => [
+        'email' => env('ADMIN_EMAIL', 'admin@lechtyper.local'),
+        'password' => env('ADMIN_PASSWORD'),
+    ],
+
 ];

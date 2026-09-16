@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'przelewy24' => [
+        'merchant_id' => env('P24_MERCHANT_ID'),
+        'pos_id' => env('P24_POS_ID', env('P24_MERCHANT_ID')),
+        'api_key' => env('P24_API_KEY'),
+        'crc' => env('P24_CRC'),
+        'url' => env('P24_URL', 'https://sandbox.przelewy24.pl'),
+        'amounts' => [7 => (int) env('P24_PREMIUM_7_AMOUNT', 0), 30 => (int) env('P24_PREMIUM_30_AMOUNT', 0)],
+    ],
+
 ];

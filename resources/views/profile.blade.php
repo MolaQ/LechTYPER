@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ config('app.name') }} | Profil</title><link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">@vite(['resources/css/app.css', 'resources/js/app.js'])</head>
+<body><main class="container py-5"><a class="brand d-flex align-items-center gap-2 mb-5" href="{{ route('home') }}"><span class="brand-mark">LP</span><span>#LechTYPER</span></a><div class="row justify-content-center"><div class="col-12 col-lg-7"><p class="eyebrow mb-2">Mój profil</p><h1 class="font-display h3 mb-4">Profil użytkownika</h1><section class="bg-white border rounded-3 p-4"><dl class="row mb-0"><dt class="col-sm-4">Imię i nazwisko</dt><dd class="col-sm-8">{{ auth()->user()->name }}</dd><dt class="col-sm-4">Email</dt><dd class="col-sm-8">{{ auth()->user()->email }}</dd><dt class="col-sm-4">Nazwa konta X</dt><dd class="col-sm-8">{{ auth()->user()->x_username ?? 'Nie ustawiono' }}</dd></dl></section></div></div></main></body>
+</html>
