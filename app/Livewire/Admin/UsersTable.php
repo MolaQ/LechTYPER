@@ -30,6 +30,8 @@ class UsersTable extends Component
 
     public ?int $premiumUserId = null;
 
+    public string $activeModal = '';
+
     public string $name = '';
 
     public string $email = '';
@@ -58,7 +60,7 @@ class UsersTable extends Component
         $this->reset(['name', 'email', 'xUsername', 'viewingUserId', 'editingUserId', 'premiumUserId']);
         $this->newRole = 'kibol';
         $this->showCreateModal = true;
-        $this->dispatch('show-user-modal', modal: 'createUserModal');
+        $this->activeModal = 'create';
     }
 
     public function closeModals(): void
@@ -66,6 +68,7 @@ class UsersTable extends Component
         $this->showCreateModal = false;
         $this->viewingUserId = null;
         $this->editingUserId = null;
+        $this->activeModal = '';
     }
 
     public function createUser(): void
@@ -98,13 +101,14 @@ class UsersTable extends Component
 
         $this->reset(['name', 'email', 'xUsername']);
         $this->showCreateModal = false;
+        $this->activeModal = '';
         session()->flash('status', "Konto {$user->email} zostało utworzone.");
     }
 
     public function viewUser(int $userId): void
     {
         $this->viewingUserId = $userId;
-        $this->dispatch('show-user-modal', modal: 'viewUserModal');
+        $this->activeModal = 'view';
     }
 
     public function preparePremium(int $userId): void
@@ -117,7 +121,7 @@ class UsersTable extends Component
             return;
         }
         $this->premiumUserId = $userId;
-        $this->dispatch('show-user-modal', modal: 'premiumModal');
+        $this->activeModal = 'premium';
     }
 
     public function editUser(int $userId): void
@@ -129,7 +133,7 @@ class UsersTable extends Component
         $this->email = $user->email;
         $this->xUsername = $user->x_username ?? '';
         $this->newRole = $user->role;
-        $this->dispatch('show-user-modal', modal: 'editUserModal');
+        $this->activeModal = 'edit';
     }
 
     public function saveUser(): void
@@ -147,6 +151,7 @@ class UsersTable extends Component
         }
         $user->update(['name' => $data['name'], 'email' => $data['email'], 'x_username' => $data['xUsername'], 'role' => $data['newRole']]);
         $this->editingUserId = null;
+        $this->activeModal = '';
         session()->flash('status', "Dane użytkownika {$user->email} zostały zapisane.");
     }
 
@@ -182,7 +187,7 @@ class UsersTable extends Component
 
         $this->viewingUserId = $user->id;
         session()->flash('status', "Ustawiono nowe hasło tymczasowe dla {$user->email}.");
-        $this->dispatch('show-user-modal', modal: 'viewUserModal');
+        $this->activeModal = 'view';
     }
 
     public function render(): View
