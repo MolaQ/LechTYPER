@@ -11,14 +11,12 @@
 <body>
 <div class="app-layout">
     <aside class="sidebar d-flex flex-column p-3 p-lg-4" id="sidebar">
-        <a class="brand d-flex align-items-center gap-2 mb-5" href="{{ route('home') }}"><span class="brand-mark">LP</span><span>#LechTYPER</span></a>
+        <a class="brand d-flex align-items-center gap-2 mb-5" href="{{ route('news') }}"><span class="brand-mark">LP</span><span>#LechTYPER</span></a>
         <div class="sidebar-label px-2 mb-2">Nawigacja</div>
         <nav class="nav flex-column gap-1">
             <a class="nav-link active d-flex align-items-center gap-3 px-3 py-2" href="{{ route('news') }}"><span class="nav-icon">⌂</span>Aktualności</a>
-            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">◷</span>Mecze</a>
-            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('home') }}"><span class="nav-icon">♧</span>Społeczność <span class="nav-count badge rounded-pill ms-auto">12</span></a>
-            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('home') }}"><span class="nav-icon">▤</span>Tabela wyników</a>
-            @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">⚽</span>Liga kiboli</a>@endauth
+            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">⚽</span>Liga kiboli</a>
+            @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('profile') }}"><span class="nav-icon">◎</span>Mój profil</a>@endauth
         </nav>
         @auth
         <div class="sidebar-label sidebar-label-spaced px-2 mb-2">Twoja strefa</div>
@@ -28,6 +26,7 @@
         <div class="match-mini p-3 mb-3"><div class="match-mini-top d-flex justify-content-between">Następny mecz <span class="live-dot"></span></div><div class="match-mini-teams d-flex justify-content-between my-3"><strong>LEC</strong><span>vs</span><strong>WIS</strong></div><div class="match-mini-date">Sobota, 20:30 <span>•</span> Enea Stadion</div></div>
         <div class="sidebar-profile d-flex align-items-center gap-2 border-top pt-3"><div class="avatar avatar-gold">MK</div><div><strong>Mateusz K.</strong><span>Kibol</span></div><button class="icon-button ms-auto" aria-label="Więcej">•••</button></div>
     </aside>
+
     <main class="main-content">
         <header class="topbar d-flex align-items-center justify-content-between px-3 px-lg-5"><button class="mobile-menu icon-button d-lg-none me-2" id="menu-toggle" aria-label="Otwórz menu">☰</button><div class="breadcrumb d-flex gap-3 mb-0"><span>{{ config('app.name') }}</span><b>/</b><strong>Aktualności</strong></div><div class="d-flex align-items-center gap-3">@auth <form method="POST" action="{{ route('logout') }}" class="m-0">@csrf<button class="btn btn-sm btn-outline-secondary">Wyloguj</button></form>@else <a class="btn btn-sm btn-primary" href="{{ route('login') }}">Zaloguj się</a>@endauth</div></header>
         <div class="content-wrap container-fluid px-3 px-md-4 px-xl-5 py-4 py-lg-5">
@@ -91,8 +90,8 @@
                 </section>
             @endauth
 
-            <div class="row g-4">
-                <div class="col-lg-8">
+            <div class="content-grid">
+                <div class="main-column">
                     <div class="d-flex justify-content-between align-items-end mb-3">
                         <div>
                             <p class="eyebrow mb-2">Z ostatniej chwili</p>
@@ -138,14 +137,14 @@
                     </article>
                 </div>
 
-                <aside class="col-lg-4">
-                    <section class="side-card p-3 p-md-4 mb-3">
+                <aside class="secondary-column">
+                    <section class="side-card p-3 p-md-4">
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <div>
                                 <p class="eyebrow mb-2">Sezon 2026/27</p>
                                 <h3 class="font-display h5 mb-0">Tabela ligowa</h3>
                             </div>
-                            <a class="text-blue small fw-semibold" href="{{ route('home') }}">Pełna tabela →</a>
+                            <a class="text-blue small fw-semibold" href="{{ route('league.index') }}">Pełna tabela →</a>
                         </div>
                         <div class="row text-muted-custom small border-bottom pb-2">
                             <span class="col-1">#</span><span class="col">DRUŻYNA</span><span class="col-2 text-end">PKT</span>
@@ -155,11 +154,19 @@
                         <div class="team-row row align-items-center py-2"><b class="col-1">3</b><span class="team-name col"><i class="team-dot me-2"></i>Raków</span><strong class="col-2 text-end">15</strong></div>
                     </section>
 
-                    <section class="side-card p-3 p-md-4 mb-3">
-                        <p class="eyebrow mb-2">Bądź na bieżąco</p>
-                        <h3 class="font-display h5">Aktywna społeczność</h3>
-                        <p class="text-muted-custom small">Dołącz do rozmów, poznaj ludzi z trybun i twórzcie atmosferę razem.</p>
-                        <a class="btn btn-outline-primary btn-sm" href="{{ route('home') }}">Poznaj kibiców →</a>
+                    <section class="mini-panel">
+                        <div class="premium-stat-head"><span>Premium</span><span class="pill pill-blue">+12%</span></div>
+                        <div class="premium-stat-value">42,8k</div>
+                        <div class="premium-stat-sub">widoków w tej edycji</div>
+                    </section>
+
+                    <section class="mini-panel">
+                        <h3 class="mb-3">Statystyki</h3>
+                        <ul>
+                            <li><span>Średnia frekwencja</span><strong>31,6 tys.</strong></li>
+                            <li><span>Aktywne typy</span><strong>1,240</strong></li>
+                            <li><span>Nowi kibice</span><strong>+184</strong></li>
+                        </ul>
                     </section>
 
                     <section class="quote-card p-4">
@@ -170,6 +177,32 @@
             </div>
         </div>
     </main>
+
+    <aside class="right-rail d-none d-xl-block">
+        <div class="right-rail-inner">
+            <section class="premium-stat-card">
+                <div class="premium-stat-head"><span>Premium</span><span class="pill pill-red">Live</span></div>
+                <div class="premium-stat-value">29,3k</div>
+                <div class="premium-stat-sub">aktywnych obserwujących</div>
+            </section>
+            <section class="mini-panel">
+                <h3 class="mb-3">Statystyki sezonu</h3>
+                <ul>
+                    <li><span>Gole</span><strong>84</strong></li>
+                    <li><span>Asysty</span><strong>52</strong></li>
+                    <li><span>Kontuzje</span><strong>7</strong></li>
+                </ul>
+            </section>
+            <section class="mini-panel">
+                <h3 class="mb-3">Najpopularniejsze</h3>
+                <ul>
+                    <li><span>Lech vs Wisła</span><span class="pill pill-blue">Top</span></li>
+                    <li><span>Typowanie tygodnia</span><span class="pill pill-red">Hot</span></li>
+                    <li><span>Składy po deadline</span><span class="pill pill-blue">Nowe</span></li>
+                </ul>
+            </section>
+        </div>
+    </aside>
 </div>
 </body>
 </html>
