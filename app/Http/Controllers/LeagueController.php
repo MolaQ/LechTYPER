@@ -35,11 +35,11 @@ class LeagueController extends Controller
         $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
         $league = League::query()->where('slug', $leagueSlug)->firstOrFail();
         $seasonLeague = $season->seasonLeagues()->where('league_id', $league->id)->firstOrFail();
-        $team = $this->teamFor($request);
-        $myTeamStanding = SeasonTeam::query()
+        $team = $request->user() ? $this->teamFor($request) : null;
+        $myTeamStanding = $team ? SeasonTeam::query()
             ->where('team_id', $team->id)
             ->where('season_league_id', $seasonLeague->id)
-            ->first();
+            ->first() : null;
 
         $standings = SeasonTeam::query()
             ->where('season_league_id', $seasonLeague->id)
@@ -55,9 +55,9 @@ class LeagueController extends Controller
             ->orderBy('scheduled_at')
             ->get();
 
-        $players = $team->players()->with('player')->get();
-        $nextMatch = $matches->first(fn ($match) => $match->status === 'scheduled' && $match->scheduled_at->isFuture() && ($match->home_team_id === $team->id || $match->away_team_id === $team->id));
-        $selection = $nextMatch?->selections()->where('team_id', $team->id)->with('players')->first();
+        $players = $team ? $team->players()->with('player')->get() : collect();
+        $nextMatch = $matches->first(fn ($match) => $match->status === 'scheduled' && $match->scheduled_at->isFuture() && (! $team || $match->home_team_id === $team->id || $match->away_team_id === $team->id));
+        $selection = $team && $nextMatch ? $nextMatch->selections()->where('team_id', $team->id)->with('players')->first() : null;
 
         return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'players', 'nextMatch', 'selection'));
     }
@@ -68,9 +68,9 @@ class LeagueController extends Controller
 
         $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
         $league = $match->seasonLeague->league;
-        $team = $this->teamFor($request);
-        $players = $team->players()->with('player')->get();
-        $selection = $match->selections()->where('team_id', $team->id)->with('players')->first();
+        $team = $request->user() ? $this->teamFor($request) : null;
+        $players = $team ? $team->players()->with('player')->get() : collect();
+        $selection = $team ? $match->selections()->where('team_id', $team->id)->with('players')->first() : null;
 
         return view('league.match', compact('season', 'league', 'match', 'team', 'players', 'selection'));
     }
