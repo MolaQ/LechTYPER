@@ -5,8 +5,11 @@ use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
 
-it('requires authentication for the league dashboard', function () {
-    $this->get(route('league.index'))->assertRedirect(route('login'));
+it('allows guests to browse the public league dashboard', function () {
+    $this->get(route('league.index'))
+        ->assertOk()
+        ->assertSee('Publiczny podgląd')
+        ->assertSee('Terminarz');
 });
 
 it('keeps the league section on the homepage for a logged-in fan', function () {
@@ -21,6 +24,6 @@ it('keeps the league section on the homepage for a logged-in fan', function () {
     $response->assertSee('Liga kiboli');
 });
 
-it('does not expose the league section to guests', function () {
-    $this->get(route('home'))->assertOk()->assertDontSee('Liga kiboli');
+it('exposes the league link to guests on the homepage', function () {
+    $this->get(route('home'))->assertOk()->assertSee('Liga kiboli');
 });
