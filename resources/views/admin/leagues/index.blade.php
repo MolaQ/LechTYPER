@@ -8,7 +8,6 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
-@include('admin.partials.right-sidebar')
 <div class="admin-shell">
     <div class="container-fluid"><div class="row min-vh-100">
         <aside class="admin-sidebar col-lg-2 p-4 d-flex flex-column">
