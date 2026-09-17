@@ -13,6 +13,20 @@ it('allows an admin to open league management', function () {
         ->assertSee('Zarządzanie ligami');
 });
 
+it('exposes the league link from the admin navigation', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee(route('admin.leagues.index'));
+
+    $this->actingAs($admin)
+        ->get(route('admin.users.index'))
+        ->assertOk()
+        ->assertSee(route('admin.leagues.index'));
+});
+
 it('allows an admin to create and attach a league to a season', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $season = Season::query()->firstOrFail();
