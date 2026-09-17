@@ -30,10 +30,6 @@ document.querySelectorAll('.reaction-button').forEach((button) => {
 	});
 });
 
-document.querySelectorAll('[data-scroll]').forEach((button) => {
-	button.addEventListener('click', () => document.querySelector(button.dataset.scroll)?.scrollIntoView({ behavior: 'smooth' }));
-});
-
 const composer = document.querySelector('.post-placeholder');
 const submitButton = document.querySelector('.composer-submit');
 
