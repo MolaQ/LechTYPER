@@ -45,58 +45,119 @@
                     </div>
                 </div>
 
-                @if($match->status === 'scheduled' && $match->scheduled_at->isFuture())
-                    <div class="league-panel p-4 mb-4">
-                        <p class="eyebrow mb-2">Typowanie</p>
-                        <h2 class="font-display h4 mb-3">Wybierz skład na ten mecz</h2>
-                        <form method="POST" action="{{ route('league.selection.store', $match) }}">
-                            @csrf
-                            <div class="row g-2">
-                                @foreach($players as $teamPlayer)
-                                    <div class="col-sm-6 col-xl-4">
-                                        <label class="player-option d-flex align-items-center gap-2 p-2">
-                                            <input type="checkbox" name="players[]" value="{{ $teamPlayer->player_id }}" @checked($selection?->players->contains('player_id', $teamPlayer->player_id)) @disabled($teamPlayer->isInjured())>
-                                            <span>{{ $teamPlayer->player->name }}</span>
-                                            @if($teamPlayer->isInjured())
-                                                <span class="injury-mark" title="Kontuzja do {{ $teamPlayer->injury_until->format('d.m.Y H:i') }}">✕</span>
-                                            @endif
-                                        </label>
+                <div class="content-grid">
+                    <div class="main-column">
+                        @if(auth()->check() && $match->status === 'scheduled' && $match->scheduled_at->isFuture())
+                            <div class="league-panel p-4 mb-4">
+                                <p class="eyebrow mb-2">Typowanie</p>
+                                <h2 class="font-display h4 mb-3">Wybierz skład na ten mecz</h2>
+                                <form method="POST" action="{{ route('league.selection.store', $match) }}">
+                                    @csrf
+                                    <div class="row g-2">
+                                        @foreach($players as $teamPlayer)
+                                            <div class="col-sm-6 col-xl-4">
+                                                <label class="player-option d-flex align-items-center gap-2 p-2">
+                                                    <input type="checkbox" name="players[]" value="{{ $teamPlayer->player_id }}" @checked($selection?->players->contains('player_id', $teamPlayer->player_id)) @disabled($teamPlayer->isInjured())>
+                                                    <span>{{ $teamPlayer->player->name }}</span>
+                                                    @if($teamPlayer->isInjured())
+                                                        <span class="injury-mark" title="Kontuzja do {{ $teamPlayer->injury_until->format('d.m.Y H:i') }}">✕</span>
+                                                    @endif
+                                                </label>
+                                            </div>
+                                        @endforeach
                                     </div>
-                                @endforeach
+                                    <button class="btn btn-primary mt-3" type="submit">Zapisz 5 zawodników</button>
+                                </form>
                             </div>
-                            <button class="btn btn-primary mt-3" type="submit">Zapisz 5 zawodników</button>
-                        </form>
+                        @elseif(auth()->check())
+                            <div class="league-panel p-4 mb-4">
+                                <p class="eyebrow mb-2">Składy</p>
+                                <h2 class="font-display h4 mb-3">Tymczasowo pokazujemy składy rywali po zamknięciu typowania</h2>
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="border rounded-3 p-3 h-100">
+                                            <h3 class="h5 mb-3">{{ $match->homeTeam->name }}</h3>
+                                            <ul class="list-unstyled mb-0">
+                                                <li class="py-2 border-bottom">Lewy obrońca</li>
+                                                <li class="py-2 border-bottom">Środkowy pomocnik</li>
+                                                <li class="py-2 border-bottom">Napastnik</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border rounded-3 p-3 h-100">
+                                            <h3 class="h5 mb-3">{{ $match->awayTeam->name }}</h3>
+                                            <ul class="list-unstyled mb-0">
+                                                <li class="py-2 border-bottom">Prawy obrońca</li>
+                                                <li class="py-2 border-bottom">Ofensywny pomocnik</li>
+                                                <li class="py-2 border-bottom">Napastnik</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="league-panel p-4 mb-4">
+                                <p class="eyebrow mb-2">Publiczny podgląd</p>
+                                <h2 class="font-display h4 mb-3">Zaloguj się, aby typować skład</h2>
+                                <p class="text-muted-custom">Szczegóły meczu, data i terminarz są dostępne bez konta. Typowanie wymaga zalogowanego użytkownika.</p>
+                                <a class="btn btn-primary" href="{{ route('login') }}">Zaloguj się</a>
+                            </div>
+                        @endif
                     </div>
-                @else
-                    <div class="league-panel p-4 mb-4">
-                        <p class="eyebrow mb-2">Składy</p>
-                        <h2 class="font-display h4 mb-3">Tymczasowo pokazujemy składy rywali po zamknięciu typowania</h2>
-                        <div class="row g-4">
-                            <div class="col-md-6">
-                                <div class="border rounded-3 p-3 h-100">
-                                    <h3 class="h5 mb-3">{{ $match->homeTeam->name }}</h3>
-                                    <ul class="list-unstyled mb-0">
-                                        <li class="py-2 border-bottom">Lewy obrońca</li>
-                                        <li class="py-2 border-bottom">Środkowy pomocnik</li>
-                                        <li class="py-2 border-bottom">Napastnik</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="border rounded-3 p-3 h-100">
-                                    <h3 class="h5 mb-3">{{ $match->awayTeam->name }}</h3>
-                                    <ul class="list-unstyled mb-0">
-                                        <li class="py-2 border-bottom">Prawy obrońca</li>
-                                        <li class="py-2 border-bottom">Ofensywny pomocnik</li>
-                                        <li class="py-2 border-bottom">Napastnik</li>
-                                    </ul>
-                                </div>
-                            </div>
+
+                    <aside class="secondary-column">
+                        <div class="mini-panel">
+                            <div class="premium-stat-head"><span>Premium</span><span class="pill pill-red">Live</span></div>
+                            <div class="premium-stat-value">16,8k</div>
+                            <div class="premium-stat-sub">kibiców śledzi ten mecz</div>
                         </div>
-                    </div>
-                @endif
+
+                        <div class="mini-panel">
+                            <h3 class="mb-3">Formy drużyn</h3>
+                            <ul>
+                                <li><span>{{ $match->homeTeam->name }}</span><strong>W-W-D</strong></li>
+                                <li><span>{{ $match->awayTeam->name }}</span><strong>D-W-L</strong></li>
+                            </ul>
+                        </div>
+
+                        <div class="mini-panel">
+                            <h3 class="mb-3">Szczegóły spotkania</h3>
+                            <ul>
+                                <li><span>Data</span><strong>{{ $match->scheduled_at->format('d.m.Y') }}</strong></li>
+                                <li><span>Godzina</span><strong>{{ $match->scheduled_at->format('H:i') }}</strong></li>
+                                <li><span>Poziom</span><strong>{{ $league->name }}</strong></li>
+                            </ul>
+                        </div>
+                    </aside>
+                </div>
             </div>
         </main>
+
+        <aside class="right-rail d-none d-xl-block">
+            <div class="right-rail-inner">
+                <section class="premium-stat-card">
+                    <div class="premium-stat-head"><span>Premium</span><span class="pill pill-blue">Nowe</span></div>
+                    <div class="premium-stat-value">12,9k</div>
+                    <div class="premium-stat-sub">aktywnych typujących</div>
+                </section>
+                <section class="mini-panel">
+                    <h3 class="mb-3">Forma</h3>
+                    <ul>
+                        <li><span>{{ $match->homeTeam->name }}</span><strong>5/6</strong></li>
+                        <li><span>{{ $match->awayTeam->name }}</span><strong>4/6</strong></li>
+                    </ul>
+                </section>
+                <section class="mini-panel">
+                    <h3 class="mb-3">Wydarzenia</h3>
+                    <ul>
+                        <li><span>Typowanie</span><strong>Otwarte</strong></li>
+                        <li><span>Składy</span><strong>Po terminie</strong></li>
+                        <li><span>Premiery</span><strong>7</strong></li>
+                    </ul>
+                </section>
+            </div>
+        </aside>
     </div>
 </div>
 </body>
