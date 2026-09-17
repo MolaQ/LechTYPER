@@ -37,7 +37,7 @@ a { text-decoration: none; }
 .welcome-row h1 { font: 700 clamp(28px, 3vw, 38px)/1.1 'Space Grotesk', sans-serif; letter-spacing: -.035em; }
 .primary-button { color: #fff; background: var(--blue); border: 0; box-shadow: 0 8px 18px rgba(23,87,212,.18); font-weight: 700; }
 .primary-button:hover { background: #0e43ad; }
-.hero-match { min-height: 210px; overflow: hidden; color: #fff; background: var(--ink); border-radius: 10px; }
+.hero-match { min-height: 210px; overflow: hidden; color: #fff; background: var(--ink); border-radius: 14px; border: 1px solid rgba(255,255,255,.04); box-shadow: 0 18px 36px rgba(16,35,63,.12); }
 .hero-match-bg { position: absolute; inset: 0; opacity: .24; background: linear-gradient(90deg, #11284a 10%, transparent 60%), url('https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=1400&q=80') center 58%/cover; }
 .hero-match-content { position: relative; }
 .hero-match-row { gap: clamp(35px, 9vw, 150px); }
@@ -45,7 +45,11 @@ a { text-decoration: none; }
 .club-crest { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid rgba(255,255,255,.38); border-radius: 50%; font: 700 23px 'Space Grotesk', sans-serif; }
 .crest-blue { background: var(--blue); }.crest-red { background: var(--red); }
 .match-time strong { font: 700 30px 'Space Grotesk', sans-serif; }
-.post-card, .side-card { background: #fff; border: 1px solid var(--line); border-radius: 9px; }
+.stats-strip { display: flex; flex-wrap: wrap; gap: 1rem; }
+.stat-box { flex: 1 1 180px; background: rgba(255,255,255,.75); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; box-shadow: 0 8px 24px rgba(15,32,61,.04); }
+.stat-label { display: block; color: #7d8b9b; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: .4rem; }
+.stat-box strong { color: var(--ink); font: 700 21px 'Space Grotesk', sans-serif; }
+.post-card, .side-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 26px rgba(15,32,61,.03); }
 .post-placeholder { color: #a4afbc; background: #f7f9fb; cursor: text; }
 .post-image { height: 230px; }.post-image img { width: 100%; height: 100%; object-fit: cover; }
 .post-actions button, .composer-actions button { color: #8996a5; background: transparent; border: 0; font-size: 11px; }
