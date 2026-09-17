@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminLeagueManagementController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LeagueController::class, 'home'])->name('home');
@@ -26,7 +27,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/admin/liga/mecze/{match}/rozlicz', [AdminLeagueController::class, 'completeMatch'])->name('admin.league.matches.complete')->middleware('admin');
     Route::get('/haslo/zmien', [AuthController::class, 'showChangePassword'])->name('password.change');
     Route::post('/haslo/zmien', [AuthController::class, 'changePassword'])->name('password.update');
-    Route::view('/profil', 'profile')->name('profile');
+    Route::get('/profil', [ProfileController::class, 'show'])->name('profile');
+    Route::put('/profil/druzyna', [ProfileController::class, 'updateTeamName'])->name('profile.team.update');
     Route::view('/premium', 'premium')->name('premium');
     Route::post('/admin/uzytkownicy', [AuthController::class, 'createUser'])->name('admin.users.store')->middleware('admin');
     Route::get('/admin/ligi', [AdminLeagueManagementController::class, 'index'])->name('admin.leagues.index')->middleware('admin');
