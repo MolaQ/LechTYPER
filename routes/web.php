@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminLeagueController;
+use App\Http\Controllers\AdminLeagueManagementController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\PaymentController;
@@ -17,10 +18,10 @@ Route::get('/haslo/reset/{token}', [AuthController::class, 'showResetPassword'])
 Route::post('/haslo/reset', [AuthController::class, 'resetPassword'])->name('password.store');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 Route::view('/admin', 'admin')->name('admin.dashboard')->middleware(['auth', 'admin']);
+Route::get('/liga', [LeagueController::class, 'index'])->name('league.index');
+Route::get('/liga/{leagueSlug}', [LeagueController::class, 'show'])->name('league.show');
+Route::get('/liga/{leagueSlug}/mecz/{match}', [LeagueController::class, 'match'])->name('league.match');
 Route::middleware('auth')->group(function (): void {
-    Route::get('/liga', [LeagueController::class, 'index'])->name('league.index');
-    Route::get('/liga/{leagueSlug}', [LeagueController::class, 'show'])->name('league.show');
-    Route::get('/liga/{leagueSlug}/mecz/{match}', [LeagueController::class, 'match'])->name('league.match');
     Route::post('/liga/mecze/{match}/typ', [LeagueController::class, 'submitSelection'])->name('league.selection.store');
     Route::post('/admin/liga/mecze/{match}/rozlicz', [AdminLeagueController::class, 'completeMatch'])->name('admin.league.matches.complete')->middleware('admin');
     Route::get('/haslo/zmien', [AuthController::class, 'showChangePassword'])->name('password.change');
@@ -28,6 +29,13 @@ Route::middleware('auth')->group(function (): void {
     Route::view('/profil', 'profile')->name('profile');
     Route::view('/premium', 'premium')->name('premium');
     Route::post('/admin/uzytkownicy', [AuthController::class, 'createUser'])->name('admin.users.store')->middleware('admin');
+    Route::get('/admin/ligi', [AdminLeagueManagementController::class, 'index'])->name('admin.leagues.index')->middleware('admin');
+    Route::post('/admin/ligi', [AdminLeagueManagementController::class, 'store'])->name('admin.leagues.store')->middleware('admin');
+    Route::put('/admin/ligi/{league}', [AdminLeagueManagementController::class, 'update'])->name('admin.leagues.update')->middleware('admin');
+    Route::delete('/admin/ligi/{league}', [AdminLeagueManagementController::class, 'destroy'])->name('admin.leagues.destroy')->middleware('admin');
+    Route::post('/admin/ligi/sezony', [AdminLeagueManagementController::class, 'attachToSeason'])->name('admin.leagues.seasons.store')->middleware('admin');
+    Route::put('/admin/ligi/sezony/{seasonLeague}', [AdminLeagueManagementController::class, 'updateSeasonLeague'])->name('admin.leagues.seasons.update')->middleware('admin');
+    Route::delete('/admin/ligi/sezony/{seasonLeague}', [AdminLeagueManagementController::class, 'detachFromSeason'])->name('admin.leagues.seasons.destroy')->middleware('admin');
     Route::put('/admin/uzytkownicy/{user}/nazwa-x', [AuthController::class, 'updateXUsername'])->name('admin.users.x-username.update')->middleware('admin');
     Route::view('/admin/uzytkownicy', 'admin.users.index')->name('admin.users.index')->middleware('admin');
     Route::get('/admin/uzytkownicy/dodaj', fn () => redirect()->route('admin.users.index'))->name('admin.users.create')->middleware('admin');
