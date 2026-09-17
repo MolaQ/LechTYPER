@@ -48,9 +48,9 @@
                     <div>
                         <p class="eyebrow mb-2">{{ $season->name }}</p>
                         <h1 class="font-display h2 mb-1">Liga kiboli</h1>
-                        <p class="text-muted-custom mb-0">{{ $team->name }} · {{ $league->name }}</p>
+                        <p class="text-muted-custom mb-0">{{ $team?->name ?? 'Publiczny podgląd' }} · {{ $league->name }}</p>
                     </div>
-                    <div class="d-flex flex-wrap gap-2">
+                    <div class="league-selector">
                         @foreach($season->seasonLeagues->sortBy('league.level') as $item)
                             <a href="{{ route('league.show', $item->league->slug) }}" class="btn btn-sm {{ $item->league_id === $league->id ? 'btn-primary' : 'btn-outline-primary' }}">{{ $item->league->name }}</a>
                         @endforeach
@@ -61,9 +61,9 @@
                     <div class="alert alert-success mb-4">{{ session('status') }}</div>
                 @endif
 
-                <div class="row g-4">
-                    <section class="col-lg-8">
-                        <div class="league-panel p-4 mb-4">
+                <div class="content-grid">
+                    <section class="main-column">
+                        <div class="league-panel table-panel p-4 mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div>
                                     <p class="eyebrow mb-2">Najbliższe typowanie</p>
@@ -87,6 +87,7 @@
                                     <a class="btn btn-outline-primary btn-sm" href="{{ route('league.match', [$league->slug, $nextMatch->id]) }}">Zobacz szczegóły</a>
                                 </div>
 
+                                @auth
                                 <form method="POST" action="{{ route('league.selection.store', $nextMatch) }}">
                                     @csrf
                                     <div class="row g-2">
@@ -104,6 +105,13 @@
                                     </div>
                                     <button class="btn btn-primary mt-3" type="submit">Zapisz 5 zawodników</button>
                                 </form>
+                                @else
+                                    <div class="mini-panel mt-3">
+                                        <strong>Zaloguj się, aby typować skład.</strong>
+                                        <p class="text-muted-custom small mb-2">Tabela i terminarz są dostępne publicznie.</p>
+                                        <a class="btn btn-primary btn-sm" href="{{ route('login') }}">Zaloguj się</a>
+                                    </div>
+                                @endauth
                             @else
                                 <p class="text-muted-custom mb-0">Administrator nie utworzył jeszcze meczu dla tej ligi.</p>
                             @endif
@@ -143,7 +151,7 @@
                             </div>
                         </div>
 
-                        <div class="league-panel p-4">
+                        <div class="league-panel fixture-panel p-4">
                             <p class="eyebrow mb-2">Terminarz</p>
                             <h2 class="font-display h4 mb-3">Kolejeki i mecze</h2>
                             <div class="d-grid gap-3">
@@ -165,9 +173,10 @@
                         </div>
                     </section>
 
-                    <aside class="col-lg-4">
+                    <aside class="secondary-column">
                         <div class="league-panel p-4 mb-4">
-                            <p class="eyebrow mb-3">Twój skład</p>
+                            <p class="eyebrow mb-3">{{ $team ? 'Twój skład' : 'Strefa użytkownika' }}</p>
+                            @auth
                             @forelse($players as $teamPlayer)
                                 <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                     <span>{{ $teamPlayer->player->name }}</span>
@@ -178,6 +187,10 @@
                             @empty
                                 <p class="text-muted-custom mb-0">Administrator nie wprowadził jeszcze aktualnego składu.</p>
                             @endforelse
+                            @else
+                                <p class="text-muted-custom mb-3">Zaloguj się, aby zobaczyć swój skład i historię typowań.</p>
+                                <a class="btn btn-outline-primary btn-sm" href="{{ route('login') }}">Zaloguj się</a>
+                            @endauth
                         </div>
 
                         <div class="league-panel p-4">
@@ -199,10 +212,73 @@
                                 <p class="text-muted-custom mb-0">Nie ma jeszcze danych dla Twojego zespołu w tej lidze.</p>
                             @endif
                         </div>
+
+                        @auth
+                        @if(auth()->user()->hasActivePremium())
+                        <div class="mini-panel">
+                            <div class="premium-stat-head"><span>Premium</span><span class="pill pill-blue">+9%</span></div>
+                            <div class="premium-stat-value">14,7k</div>
+                            <div class="premium-stat-sub">aktywnych kibiców w lidze</div>
+                        </div>
+                        @else
+                        <div class="mini-panel">
+                            <div class="premium-stat-head"><span>Premium</span><span class="pill pill-red">Zablokowane</span></div>
+                            <strong>Odblokuj statystyki ligi</strong>
+                            <p class="text-muted-custom small mt-2 mb-2">Pełne porównania i analizy są dostępne w Premium.</p>
+                            <a class="btn btn-primary btn-sm" href="{{ route('premium') }}">Sprawdź Premium</a>
+                        </div>
+                        @endif
+                        @endauth
+
+                        <div class="mini-panel">
+                            <h3 class="mb-3">Statystyki ligi</h3>
+                            <ul>
+                                <li><span>Średnia bramek</span><strong>2.4</strong></li>
+                                <li><span>Typowania</span><strong>842</strong></li>
+                                <li><span>Wynik meczu</span><strong>3:1</strong></li>
+                            </ul>
+                        </div>
                     </aside>
                 </div>
             </div>
         </main>
+
+        <aside class="right-rail d-none d-xl-block">
+            <div class="right-rail-inner">
+                @auth
+                @if(auth()->user()->hasActivePremium())
+                <section class="premium-stat-card">
+                    <div class="premium-stat-head"><span>Premium</span><span class="pill pill-red">Live</span></div>
+                    <div class="premium-stat-value">21,4k</div>
+                    <div class="premium-stat-sub">kibiców w trybie premium</div>
+                </section>
+                @else
+                <section class="premium-stat-card">
+                    <div class="premium-stat-head"><span>Premium</span><span class="pill pill-red">Zablokowane</span></div>
+                    <div class="premium-stat-value">?</div>
+                    <div class="premium-stat-sub">Odblokuj statystyki ligi</div>
+                    <a class="btn btn-light btn-sm mt-3" href="{{ route('premium') }}">Sprawdź Premium</a>
+                </section>
+                @endif
+                @endauth
+                <section class="mini-panel">
+                    <h3 class="mb-3">Największe rywalizacje</h3>
+                    <ul>
+                        <li><span>Lech - Wisła</span><strong>84%</strong></li>
+                        <li><span>Jagiellonia</span><strong>71%</strong></li>
+                        <li><span>Raków</span><strong>69%</strong></li>
+                    </ul>
+                </section>
+                <section class="mini-panel">
+                    <h3 class="mb-3">Szczegóły meczu</h3>
+                    <ul>
+                        <li><span>Data</span><strong>{{ $nextMatch ? $nextMatch->scheduled_at->format('d.m') : '---' }}</strong></li>
+                        <li><span>Stadion</span><strong>Enea</strong></li>
+                        <li><span>Typowanie</span><strong>Otwarte</strong></li>
+                    </ul>
+                </section>
+            </div>
+        </aside>
     </div>
 </div>
 </body>
