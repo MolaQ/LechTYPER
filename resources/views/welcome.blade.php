@@ -14,15 +14,15 @@
         <a class="brand d-flex align-items-center gap-2 mb-5" href="{{ route('home') }}"><span class="brand-mark">LP</span><span>#LechTYPER</span></a>
         <div class="sidebar-label px-2 mb-2">Nawigacja</div>
         <nav class="nav flex-column gap-1">
-            <a class="nav-link active d-flex align-items-center gap-3 px-3 py-2" href="#aktualnosci"><span class="nav-icon">⌂</span>Aktualności</a>
-            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="#mecz"><span class="nav-icon">◷</span>Mecze</a>
-            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="#spolecznosc"><span class="nav-icon">♧</span>Społeczność <span class="nav-count badge rounded-pill ms-auto">12</span></a>
-            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="#tabela"><span class="nav-icon">▤</span>Tabela wyników</a>
-            @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="#liga"><span class="nav-icon">⚽</span>Liga kiboli</a>@endauth
+            <a class="nav-link active d-flex align-items-center gap-3 px-3 py-2" href="{{ route('news') }}"><span class="nav-icon">⌂</span>Aktualności</a>
+            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">◷</span>Mecze</a>
+            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('home') }}"><span class="nav-icon">♧</span>Społeczność <span class="nav-count badge rounded-pill ms-auto">12</span></a>
+            <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('home') }}"><span class="nav-icon">▤</span>Tabela wyników</a>
+            @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">⚽</span>Liga kiboli</a>@endauth
         </nav>
         @auth
         <div class="sidebar-label sidebar-label-spaced px-2 mb-2">Twoja strefa</div>
-        <nav class="nav flex-column gap-1"><a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('profile') }}"><span class="nav-icon">◎</span>Mój profil</a><a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="#ustawienia"><span class="nav-icon">⚙</span>Ustawienia</a></nav>
+        <nav class="nav flex-column gap-1"><a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('profile') }}"><span class="nav-icon">◎</span>Mój profil</a><a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('profile') }}"><span class="nav-icon">⚙</span>Ustawienia</a></nav>
         @endauth
         <div class="sidebar-spacer"></div>
         <div class="match-mini p-3 mb-3"><div class="match-mini-top d-flex justify-content-between">Następny mecz <span class="live-dot"></span></div><div class="match-mini-teams d-flex justify-content-between my-3"><strong>LEC</strong><span>vs</span><strong>WIS</strong></div><div class="match-mini-date">Sobota, 20:30 <span>•</span> Enea Stadion</div></div>
@@ -31,16 +31,143 @@
     <main class="main-content">
         <header class="topbar d-flex align-items-center justify-content-between px-3 px-lg-5"><button class="mobile-menu icon-button d-lg-none me-2" id="menu-toggle" aria-label="Otwórz menu">☰</button><div class="breadcrumb d-flex gap-3 mb-0"><span>{{ config('app.name') }}</span><b>/</b><strong>Aktualności</strong></div><div class="d-flex align-items-center gap-3">@auth <form method="POST" action="{{ route('logout') }}" class="m-0">@csrf<button class="btn btn-sm btn-outline-secondary">Wyloguj</button></form>@else <a class="btn btn-sm btn-primary" href="{{ route('login') }}">Zaloguj się</a>@endauth</div></header>
         <div class="content-wrap container-fluid px-3 px-md-4 px-xl-5 py-4 py-lg-5">
-            <section class="welcome-row d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4" id="aktualnosci"><div><p class="eyebrow mb-2">Środa, 16 września 2026</p><h1 class="mb-2">Dzień dobry, <em class="text-blue">Mateusz.</em></h1><p class="text-muted-custom mb-0">Tu bije serce naszej społeczności. Zobacz, co dzieje się na trybunach.</p></div><button class="primary-button btn px-3 py-2" data-scroll="#composer">＋ Dodaj wpis</button></section>
-            <section class="hero-match position-relative p-4 p-lg-5 mb-4" id="mecz"><div class="hero-match-bg"></div><div class="hero-match-content"><div class="small text-white-50"><span class="live-dot me-2"></span>Najbliższe spotkanie <span class="mx-2">•</span> PKO Ekstraklasa</div><div class="hero-match-row d-flex align-items-center justify-content-center my-4"><div class="club club-home d-flex align-items-center gap-2"><div class="club-crest crest-blue">L</div><span>Lech Poznań</span></div><div class="match-time text-center"><strong class="d-block">20:30</strong><span class="small text-white-50">Sobota, 19 września</span></div><div class="club d-flex align-items-center gap-2"><div class="club-crest crest-red">W</div><span>Wisła Kraków</span></div></div><div class="d-flex justify-content-between border-top border-light border-opacity-10 pt-3 small text-white-50"><span>Enea Stadion, Poznań</span><a class="text-white fw-semibold" href="#mecz">Szczegóły spotkania →</a></div></div></section>
+            <section class="welcome-row d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
+                <div>
+                    <p class="eyebrow mb-2">Środa, 16 września 2026</p>
+                    <h1 class="mb-2">Dzień dobry, <em class="text-blue">Mateusz.</em></h1>
+                    <p class="text-muted-custom mb-0">Tu bije serce naszej społeczności. Zobacz, co dzieje się na trybunach.</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ route('news') }}" class="primary-button btn px-3 py-2">Aktualności</a>
+                    @auth
+                        <a href="{{ route('league.index') }}" class="btn btn-outline-primary px-3 py-2">Liga kiboli</a>
+                    @else
+                        <a href="{{ route('login') }}" class="btn btn-outline-primary px-3 py-2">Zaloguj się</a>
+                    @endauth
+                </div>
+            </section>
+
+            <section class="hero-match position-relative p-4 p-lg-5 mb-4">
+                <div class="hero-match-bg"></div>
+                <div class="hero-match-content">
+                    <div class="small text-white-50 mb-3"><span class="live-dot me-2"></span>Najbliższe spotkanie <span class="mx-2">•</span> PKO Ekstraklasa</div>
+                    <div class="hero-match-row d-flex align-items-center justify-content-center my-4">
+                        <div class="club club-home d-flex align-items-center gap-2"><div class="club-crest crest-blue">L</div><span>Lech Poznań</span></div>
+                        <div class="match-time text-center"><strong class="d-block">20:30</strong><span class="small text-white-50">Sobota, 19 września</span></div>
+                        <div class="club d-flex align-items-center gap-2"><div class="club-crest crest-red">W</div><span>Wisła Kraków</span></div>
+                    </div>
+                    <div class="d-flex justify-content-between border-top border-light border-opacity-10 pt-3 small text-white-50">
+                        <span>Enea Stadion, Poznań</span>
+                        <a class="text-white fw-semibold" href="{{ route('league.index') }}">Szczegóły spotkania →</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="stats-strip d-flex flex-wrap gap-3 mb-4">
+                <div class="stat-box">
+                    <span class="stat-label">Społeczność</span>
+                    <strong>12,4 tys.</strong>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Mecze w lidze</span>
+                    <strong>9 kolejka</strong>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Najbliższy mecz</span>
+                    <strong>18:00</strong>
+                </div>
+            </section>
+
             @auth
-            <section class="league-home-panel p-4 p-lg-5 mb-4" id="liga"><div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3"><div><p class="eyebrow mb-2">Strefa kibola</p><h2 class="font-display h4 mb-2">Liga kiboli</h2><p class="text-muted-custom mb-0">Wybieraj pięciu zawodników Lecha i rywalizuj w swoim sezonie ligowym.</p></div><a class="btn btn-primary" href="#liga">Otwórz moją ligę</a></div></section>
+                <section class="league-home-panel p-4 p-lg-5 mb-4">
+                    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                        <div>
+                            <p class="eyebrow mb-2">Strefa kibola</p>
+                            <h2 class="font-display h4 mb-2">Liga kiboli</h2>
+                            <p class="text-muted-custom mb-0">Wybieraj pięciu zawodników Lecha i rywalizuj w swoim sezonie ligowym.</p>
+                        </div>
+                        <a class="btn btn-primary" href="{{ route('league.index') }}">Otwórz moją ligę</a>
+                    </div>
+                </section>
             @endauth
-            <div class="row g-4"><div class="col-lg-8"><div class="d-flex justify-content-between align-items-end mb-3"><div><p class="eyebrow mb-2">Z ostatniej chwili</p><h2 class="font-display h4 mb-0">Co słychać na trybunach?</h2></div><button class="filter-button">Najnowsze ⌄</button></div>
-                <article class="post-card p-3 p-md-4 mb-3" id="composer"><div class="d-flex align-items-center gap-2"><div class="avatar avatar-gold">MK</div><div><strong>Mateusz K.</strong><span class="d-block text-muted-custom small">Teraz • Kibol</span></div><button class="icon-button ms-auto">•••</button></div><p class="post-placeholder p-3 my-3 rounded">Podziel się z ekipą tym, co masz na sercu...</p><div class="composer-actions d-flex gap-3"><button>▧ Zdjęcie</button><button>☺ Nastrój</button><button class="composer-submit btn btn-sm text-white ms-auto" disabled>Opublikuj</button></div></article>
-                <article class="post-card p-3 p-md-4 mb-3"><div class="d-flex align-items-center gap-2"><div class="avatar avatar-red">KB</div><div><strong>Kolejorz Bez Granic</strong><span class="d-block text-muted-custom small">1 godz. temu • Kibol</span></div><button class="icon-button ms-auto">•••</button></div><p class="text-muted-custom my-3">W sobotę wszyscy na stadionie. Zbiórka pod Kaponierą o 18:00. Bierzcie szaliki, gardła i dobrą energię. <span class="text-blue fw-semibold">#DoBojuKolejorz</span></p><div class="post-image rounded overflow-hidden"><img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=1000&q=85" alt="Kibice na stadionie podczas meczu" loading="lazy"></div><div class="d-flex justify-content-between text-muted-custom small py-3 border-bottom"><span class="text-danger">♥ 248</span><span>32 komentarze</span></div><div class="post-actions d-flex justify-content-between pt-3"><button class="reaction-button">♡ <span>Polub</span></button><button>◌ <span>Skomentuj</span></button><button>⌁ <span>Udostępnij</span></button></div></article>
-                <article class="post-card p-3 p-md-4 mb-3"><div class="d-flex align-items-center gap-2"><div class="avatar avatar-green">AD</div><div><strong>Admin Trybuny</strong><span class="d-block text-muted-custom small">3 godz. temu • <b class="text-success">Admin</b></span></div><button class="icon-button ms-auto">•••</button></div><p class="text-muted-custom my-3">Oficjalnie: ruszyła sprzedaż biletów na mecz z Wisłą. Sprawdźcie swoje skrzynki i nie czekajcie do ostatniej chwili.</p><div class="post-actions d-flex justify-content-between pt-2"><button class="reaction-button">♡ <span>Polub</span></button><button>◌ <span>Skomentuj</span></button><button>⌁ <span>Udostępnij</span></button></div></article>
-            </div><aside class="col-lg-4" id="spolecznosc"><section class="side-card p-3 p-md-4 mb-3" id="tabela"><div class="d-flex justify-content-between align-items-start mb-3"><div><p class="eyebrow mb-2">Sezon 2026/27</p><h3 class="font-display h5 mb-0">Tabela ligowa</h3></div><a class="text-blue small fw-semibold" href="#tabela">Pełna tabela →</a></div><div class="row text-muted-custom small border-bottom pb-2"><span class="col-1">#</span><span class="col">DRUŻYNA</span><span class="col-2 text-end">PKT</span></div><div class="team-row row align-items-center py-2"><b class="col-1">1</b><span class="team-name col"><i class="team-dot lech me-2"></i>Lech Poznań</span><strong class="col-2 text-end">18</strong></div><div class="team-row row align-items-center py-2"><b class="col-1">2</b><span class="team-name col"><i class="team-dot me-2"></i>Jagiellonia</span><strong class="col-2 text-end">16</strong></div><div class="team-row row align-items-center py-2"><b class="col-1">3</b><span class="team-name col"><i class="team-dot me-2"></i>Raków</span><strong class="col-2 text-end">15</strong></div></section><section class="side-card p-3 p-md-4 mb-3"><p class="eyebrow mb-2">Bądź na bieżąco</p><h3 class="font-display h5">Aktywna społeczność</h3><p class="text-muted-custom small">Dołącz do rozmów, poznaj ludzi z trybun i twórzcie atmosferę razem.</p><button class="btn btn-outline-primary btn-sm">Poznaj kibiców →</button></section><section class="quote-card p-4"><p class="mb-2">„Nie ważne skąd jesteś. Ważne, że jesteś z nami.”</p><span class="small text-white-50">— Głos trybuny</span></section></aside></div>
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="d-flex justify-content-between align-items-end mb-3">
+                        <div>
+                            <p class="eyebrow mb-2">Z ostatniej chwili</p>
+                            <h2 class="font-display h4 mb-0">Co słychać na trybunach?</h2>
+                        </div>
+                        <span class="filter-button">Najnowsze ⌄</span>
+                    </div>
+
+                    <article class="post-card p-3 p-md-4 mb-3" id="composer">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar avatar-gold">MK</div>
+                            <div><strong>Mateusz K.</strong><span class="d-block text-muted-custom small">Teraz • Kibol</span></div>
+                            <button class="icon-button ms-auto">•••</button>
+                        </div>
+                        <p class="post-placeholder p-3 my-3 rounded">Podziel się z ekipą tym, co masz na sercu...</p>
+                        <div class="composer-actions d-flex gap-3">
+                            <button>▧ Zdjęcie</button>
+                            <button>☺ Nastrój</button>
+                            <button class="composer-submit btn btn-sm text-white ms-auto" disabled>Opublikuj</button>
+                        </div>
+                    </article>
+
+                    <article class="post-card p-3 p-md-4 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar avatar-red">KB</div>
+                            <div><strong>Kolejorz Bez Granic</strong><span class="d-block text-muted-custom small">1 godz. temu • Kibol</span></div>
+                            <button class="icon-button ms-auto">•••</button>
+                        </div>
+                        <p class="text-muted-custom my-3">W sobotę wszyscy na stadionie. Zbiórka pod Kaponierą o 18:00. Bierzcie szaliki, gardła i dobrą energię. <span class="text-blue fw-semibold">#DoBojuKolejorz</span></p>
+                        <div class="post-image rounded overflow-hidden"><img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=1000&q=85" alt="Kibice na stadionie podczas meczu" loading="lazy"></div>
+                        <div class="d-flex justify-content-between text-muted-custom small py-3 border-bottom"><span class="text-danger">♥ 248</span><span>32 komentarze</span></div>
+                        <div class="post-actions d-flex justify-content-between pt-3"><button class="reaction-button">♡ <span>Polub</span></button><button>◌ <span>Skomentuj</span></button><button>⌁ <span>Udostępnij</span></button></div>
+                    </article>
+
+                    <article class="post-card p-3 p-md-4 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar avatar-green">AD</div>
+                            <div><strong>Admin Trybuny</strong><span class="d-block text-muted-custom small">3 godz. temu • <b class="text-success">Admin</b></span></div>
+                            <button class="icon-button ms-auto">•••</button>
+                        </div>
+                        <p class="text-muted-custom my-3">Oficjalnie: ruszyła sprzedaż biletów na mecz z Wisłą. Sprawdźcie swoje skrzynki i nie czekajcie do ostatniej chwili.</p>
+                        <div class="post-actions d-flex justify-content-between pt-2"><button class="reaction-button">♡ <span>Polub</span></button><button>◌ <span>Skomentuj</span></button><button>⌁ <span>Udostępnij</span></button></div>
+                    </article>
+                </div>
+
+                <aside class="col-lg-4">
+                    <section class="side-card p-3 p-md-4 mb-3">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <p class="eyebrow mb-2">Sezon 2026/27</p>
+                                <h3 class="font-display h5 mb-0">Tabela ligowa</h3>
+                            </div>
+                            <a class="text-blue small fw-semibold" href="{{ route('home') }}">Pełna tabela →</a>
+                        </div>
+                        <div class="row text-muted-custom small border-bottom pb-2">
+                            <span class="col-1">#</span><span class="col">DRUŻYNA</span><span class="col-2 text-end">PKT</span>
+                        </div>
+                        <div class="team-row row align-items-center py-2"><b class="col-1">1</b><span class="team-name col"><i class="team-dot lech me-2"></i>Lech Poznań</span><strong class="col-2 text-end">18</strong></div>
+                        <div class="team-row row align-items-center py-2"><b class="col-1">2</b><span class="team-name col"><i class="team-dot me-2"></i>Jagiellonia</span><strong class="col-2 text-end">16</strong></div>
+                        <div class="team-row row align-items-center py-2"><b class="col-1">3</b><span class="team-name col"><i class="team-dot me-2"></i>Raków</span><strong class="col-2 text-end">15</strong></div>
+                    </section>
+
+                    <section class="side-card p-3 p-md-4 mb-3">
+                        <p class="eyebrow mb-2">Bądź na bieżąco</p>
+                        <h3 class="font-display h5">Aktywna społeczność</h3>
+                        <p class="text-muted-custom small">Dołącz do rozmów, poznaj ludzi z trybun i twórzcie atmosferę razem.</p>
+                        <a class="btn btn-outline-primary btn-sm" href="{{ route('home') }}">Poznaj kibiców →</a>
+                    </section>
+
+                    <section class="quote-card p-4">
+                        <p class="mb-2">„Nie ważne skąd jesteś. Ważne, że jesteś z nami.”</p>
+                        <span class="small text-white-50">— Głos trybuny</span>
+                    </section>
+                </aside>
+            </div>
         </div>
     </main>
 </div>
