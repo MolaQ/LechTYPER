@@ -25,19 +25,54 @@ class LeagueController extends Controller
     public function index(Request $request): View
     {
         $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
+        $defaultLeague = League::query()->where('slug', 'ekstraklasa')->firstOrFail();
+
+        return $this->show($request, $defaultLeague->slug);
+    }
+
+    public function show(Request $request, string $leagueSlug): View
+    {
+        $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
+        $league = League::query()->where('slug', $leagueSlug)->firstOrFail();
+        $seasonLeague = $season->seasonLeagues()->where('league_id', $league->id)->firstOrFail();
         $team = $this->teamFor($request);
-        $seasonTeam = SeasonTeam::query()->where('team_id', $team->id)->whereHas('seasonLeague', fn ($query) => $query->where('season_id', $season->id))->with('seasonLeague.league')->first();
-        $players = $team->players()->with('player')->get();
-        $nextMatch = MatchGame::query()
-            ->where('status', 'scheduled')
-            ->where('scheduled_at', '>=', now())
-            ->where(fn ($query) => $query->where('home_team_id', $team->id)->orWhere('away_team_id', $team->id))
+        $myTeamStanding = SeasonTeam::query()
+            ->where('team_id', $team->id)
+            ->where('season_league_id', $seasonLeague->id)
+            ->first();
+
+        $standings = SeasonTeam::query()
+            ->where('season_league_id', $seasonLeague->id)
+            ->with('team')
+            ->orderByDesc('points')
+            ->orderByDesc('score_for')
+            ->orderBy('team_id')
+            ->get();
+
+        $matches = MatchGame::query()
+            ->where('season_league_id', $seasonLeague->id)
             ->with(['homeTeam', 'awayTeam'])
             ->orderBy('scheduled_at')
-            ->first();
+            ->get();
+
+        $players = $team->players()->with('player')->get();
+        $nextMatch = $matches->first(fn ($match) => $match->status === 'scheduled' && $match->scheduled_at->isFuture() && ($match->home_team_id === $team->id || $match->away_team_id === $team->id));
         $selection = $nextMatch?->selections()->where('team_id', $team->id)->with('players')->first();
 
-        return view('league.index', compact('season', 'team', 'seasonTeam', 'players', 'nextMatch', 'selection'));
+        return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'players', 'nextMatch', 'selection'));
+    }
+
+    public function match(Request $request, string $leagueSlug, MatchGame $match): View
+    {
+        abort_unless($match->seasonLeague->league->slug === $leagueSlug, 404);
+
+        $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
+        $league = $match->seasonLeague->league;
+        $team = $this->teamFor($request);
+        $players = $team->players()->with('player')->get();
+        $selection = $match->selections()->where('team_id', $team->id)->with('players')->first();
+
+        return view('league.match', compact('season', 'league', 'match', 'team', 'players', 'selection'));
     }
 
     public function submitSelection(Request $request, MatchGame $match): RedirectResponse
