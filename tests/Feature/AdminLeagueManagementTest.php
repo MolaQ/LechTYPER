@@ -4,10 +4,10 @@ use App\Models\League;
 use App\Models\LeagueRound;
 use App\Models\MatchGame;
 use App\Models\MatchSelection;
+use App\Models\RealMatch;
 use App\Models\Season;
 use App\Models\SeasonLeague;
 use App\Models\SeasonRound;
-use App\Models\RealMatch;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
@@ -75,12 +75,13 @@ it('allows an admin to add a users team to a season league', function () {
     $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
         'user_id' => $user->id,
         'season_league_id' => $seasonLeague->id,
+        'position' => 1,
     ])->assertRedirect();
 
     $team = Team::where('user_id', $user->id)->firstOrFail();
 
     expect($team->name)->toBe('Kibic Testowy');
-    expect(SeasonTeam::where('season_league_id', $seasonLeague->id)->where('team_id', $team->id)->exists())->toBeTrue();
+    expect(SeasonTeam::where('season_league_id', $seasonLeague->id)->where('team_id', $team->id)->value('position'))->toBe(1);
 });
 
 it('derives inactivity from the absence of submitted types and removes a regular assignment', function () {
@@ -158,8 +159,8 @@ it('generates one round robin schedule with administrator supplied dates', funct
         'season_league_id' => $seasonLeague->id,
     ])->assertRedirect();
 
-    expect($seasonLeague->matches()->count())->toBe(18);
-    expect($seasonLeague->matches()->distinct('round_number')->count('round_number'))->toBe(9);
+    expect($seasonLeague->matches()->count())->toBe(6);
+    expect($seasonLeague->matches()->distinct('round_number')->count('round_number'))->toBe(3);
 });
 
 it('creates nine rounds and every pair once for ten supporter teams', function () {
@@ -182,6 +183,23 @@ it('creates nine rounds and every pair once for ten supporter teams', function (
     expect($matches)->toHaveCount(45);
     expect($matches->groupBy('round_number')->map->count()->values()->all())->toBe([5, 5, 5, 5, 5, 5, 5, 5, 5]);
     expect($pairs->unique())->toHaveCount(45);
+});
+
+it('replaces an existing league schedule when regeneration is requested', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
+
+    foreach (range(1, 10) as $number) {
+        $user = User::factory()->create(['name' => "Restart Kibic {$number}"]);
+        $team = Team::create(['user_id' => $user->id, 'name' => "Restart {$number}"]);
+        SeasonTeam::create(['season_league_id' => $seasonLeague->id, 'team_id' => $team->id]);
+    }
+
+    $this->actingAs($admin)->post(route('admin.leagues.schedule.generate'), ['season_league_id' => $seasonLeague->id])->assertRedirect();
+    $this->actingAs($admin)->post(route('admin.leagues.schedule.generate'), ['season_league_id' => $seasonLeague->id, 'reset' => 1])->assertRedirect();
+
+    expect($seasonLeague->matches()->count())->toBe(45);
+    expect($seasonLeague->rounds()->count())->toBe(9);
 });
 
 it('creates empty league rounds and assigns a real Lech match to a round', function () {
