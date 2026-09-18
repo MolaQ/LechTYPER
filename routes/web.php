@@ -38,6 +38,13 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/admin/ligi/sezony', [AdminLeagueManagementController::class, 'attachToSeason'])->name('admin.leagues.seasons.store')->middleware('admin');
     Route::put('/admin/ligi/sezony/{seasonLeague}', [AdminLeagueManagementController::class, 'updateSeasonLeague'])->name('admin.leagues.seasons.update')->middleware('admin');
     Route::delete('/admin/ligi/sezony/{seasonLeague}', [AdminLeagueManagementController::class, 'detachFromSeason'])->name('admin.leagues.seasons.destroy')->middleware('admin');
+    Route::post('/admin/ligi/druzyny', [AdminLeagueManagementController::class, 'addTeamToLeague'])->name('admin.leagues.teams.store')->middleware('admin');
+    Route::delete('/admin/ligi/druzyny/{seasonTeam}', [AdminLeagueManagementController::class, 'removeTeamFromLeague'])->name('admin.leagues.teams.destroy')->middleware('admin');
+    Route::post('/admin/ligi/nowy-sezon', [AdminLeagueManagementController::class, 'createSeason'])->name('admin.leagues.seasons.create')->middleware('admin');
+    Route::post('/admin/ligi/terminarz/generuj', [AdminLeagueManagementController::class, 'generateSchedule'])->name('admin.leagues.schedule.generate')->middleware('admin');
+    Route::put('/admin/ligi/kolejki/{round}', [AdminLeagueManagementController::class, 'updateRound'])->name('admin.leagues.rounds.update')->middleware('admin');
+    Route::get('/admin/terminarz', [AdminLeagueManagementController::class, 'schedule'])->name('admin.schedule.index')->middleware('admin');
+    Route::put('/admin/terminarz/kolejki/{round}', [AdminLeagueManagementController::class, 'updateSeasonRound'])->name('admin.schedule.rounds.update')->middleware('admin');
     Route::put('/admin/uzytkownicy/{user}/nazwa-x', [AuthController::class, 'updateXUsername'])->name('admin.users.x-username.update')->middleware('admin');
     Route::view('/admin/uzytkownicy', 'admin.users.index')->name('admin.users.index')->middleware('admin');
     Route::get('/admin/uzytkownicy/dodaj', fn () => redirect()->route('admin.users.index'))->name('admin.users.create')->middleware('admin');
