@@ -84,6 +84,50 @@ it('allows an admin to add a users team to a season league', function () {
     expect(SeasonTeam::where('season_league_id', $seasonLeague->id)->where('team_id', $team->id)->value('position'))->toBe(1);
 });
 
+it('allows an admin to move an existing team within the same league', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $user = User::factory()->create(['name' => 'Drużyna Administratora']);
+    $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
+    $team = Team::create(['user_id' => $user->id, 'name' => $user->name]);
+    $seasonTeam = SeasonTeam::create([
+        'season_league_id' => $seasonLeague->id,
+        'team_id' => $team->id,
+        'position' => 1,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $user->id,
+        'season_league_id' => $seasonLeague->id,
+        'position' => 2,
+    ])->assertRedirect();
+
+    expect($seasonTeam->fresh()->position)->toBe(2);
+});
+
+it('moves an admin team out of the backyard league when assigning it to another league', function () {
+    $admin = User::factory()->create(['role' => 'superadmin', 'name' => 'Administrator Ligi']);
+    $season = Season::query()->where('status', 'active')->firstOrFail();
+    $backyardLeague = SeasonLeague::query()
+        ->where('season_id', $season->id)
+        ->whereHas('league', fn ($query) => $query->where('level', 11))
+        ->firstOrFail();
+    $regularLeague = SeasonLeague::query()
+        ->where('season_id', $season->id)
+        ->whereHas('league', fn ($query) => $query->where('level', '<>', 11))
+        ->firstOrFail();
+    $team = Team::create(['user_id' => $admin->id, 'name' => $admin->name]);
+    SeasonTeam::create(['season_league_id' => $backyardLeague->id, 'team_id' => $team->id]);
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $admin->id,
+        'season_league_id' => $regularLeague->id,
+        'position' => 1,
+    ])->assertRedirect();
+
+    expect(SeasonTeam::query()->where('season_league_id', $backyardLeague->id)->where('team_id', $team->id)->exists())->toBeFalse();
+    expect(SeasonTeam::query()->where('season_league_id', $regularLeague->id)->where('team_id', $team->id)->exists())->toBeTrue();
+});
+
 it('derives inactivity from the absence of submitted types and removes a regular assignment', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $user = User::factory()->create();
@@ -96,6 +140,80 @@ it('derives inactivity from the absence of submitted types and removes a regular
     $this->actingAs($admin)->delete(route('admin.leagues.teams.destroy', $seasonTeam))->assertRedirect();
     expect(SeasonTeam::find($seasonTeam->id))->toBeNull();
     expect(User::find($user->id))->not->toBeNull();
+});
+
+it('does not allow the same team to be assigned to multiple leagues in the same season', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $user = User::factory()->create(['name' => 'Kibic Wieloligowy']);
+    $season = Season::query()->where('status', 'active')->firstOrFail();
+    $firstLeague = SeasonLeague::query()->where('season_id', $season->id)->firstOrFail();
+    $secondLeague = SeasonLeague::query()->where('season_id', $season->id)->whereKeyNot($firstLeague->id)->firstOrFail();
+    $team = Team::create(['user_id' => $user->id, 'name' => 'Drużyna Wieloligowa']);
+    SeasonTeam::create(['season_league_id' => $firstLeague->id, 'team_id' => $team->id]);
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $user->id,
+        'season_league_id' => $secondLeague->id,
+        'position' => 1,
+    ])->assertSessionHasErrors('team');
+});
+
+it('allows an admin to replace a bot position with a real team', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
+    $user = User::factory()->create(['name' => 'Kibic Zastępujący Bota']);
+    $position = $seasonLeague->positions()->firstOrCreate([
+        'season_league_id' => $seasonLeague->id,
+        'position' => 1,
+    ]);
+    $botUser = User::query()->firstOrCreate(
+        ['email' => sprintf('bot.%d.%d@local.test', $seasonLeague->id, 1)],
+        [
+            'name' => 'Chłopaki z orlika',
+            'password' => bcrypt('bot-'.$seasonLeague->id.'-1'),
+            'role' => 'user',
+        ],
+    );
+    $botTeam = Team::query()->firstOrCreate(['user_id' => $botUser->id], ['name' => 'Chłopaki z orlika']);
+    $position->update(['team_id' => $botTeam->id]);
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $user->id,
+        'season_league_id' => $seasonLeague->id,
+        'position' => 1,
+    ])->assertRedirect();
+
+    $team = Team::query()->where('user_id', $user->id)->firstOrFail();
+
+    expect($seasonLeague->positions()->where('position', 1)->value('team_id'))->toBe($team->id);
+    expect(SeasonTeam::query()->where('season_league_id', $seasonLeague->id)->where('team_id', $team->id)->exists())->toBeTrue();
+});
+
+it('updates every scheduled match when an admin replaces a bot position', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
+
+    $this->actingAs($admin)->post(route('admin.leagues.schedule.generate'), [
+        'season_league_id' => $seasonLeague->id,
+    ])->assertRedirect();
+
+    $position = $seasonLeague->positions()->where('position', 1)->with('team')->firstOrFail();
+    $botTeamId = $position->team_id;
+    $user = User::factory()->create(['name' => 'Administrator Lecha']);
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $user->id,
+        'season_league_id' => $seasonLeague->id,
+        'position' => 1,
+    ])->assertRedirect();
+
+    $team = Team::query()->where('user_id', $user->id)->firstOrFail();
+    $matches = $seasonLeague->matches()->where(function ($query) use ($team): void {
+        $query->where('home_team_id', $team->id)->orWhere('away_team_id', $team->id);
+    })->get();
+
+    expect($matches)->toHaveCount(9);
+    expect($seasonLeague->matches()->where('home_team_id', $botTeamId)->orWhere('away_team_id', $botTeamId)->exists())->toBeFalse();
 });
 
 it('creates a new season with only backyard teams that submitted a type', function () {
@@ -145,7 +263,7 @@ it('does not delete a backyard league team before the season ends', function () 
     expect(User::find($user->id))->not->toBeNull();
 });
 
-it('generates one round robin schedule with administrator supplied dates', function () {
+it('fills empty league slots with bots and creates a full ten-team round robin', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
 
@@ -159,8 +277,9 @@ it('generates one round robin schedule with administrator supplied dates', funct
         'season_league_id' => $seasonLeague->id,
     ])->assertRedirect();
 
-    expect($seasonLeague->matches()->count())->toBe(6);
-    expect($seasonLeague->matches()->distinct('round_number')->count('round_number'))->toBe(3);
+    expect($seasonLeague->matches()->count())->toBe(45);
+    expect($seasonLeague->rounds()->count())->toBe(9);
+    expect($seasonLeague->matches()->distinct('round_number')->count('round_number'))->toBe(9);
 });
 
 it('creates nine rounds and every pair once for ten supporter teams', function () {
