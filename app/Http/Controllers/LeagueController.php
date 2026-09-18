@@ -6,6 +6,7 @@ use App\Models\League;
 use App\Models\MatchGame;
 use App\Models\MatchSelection;
 use App\Models\Season;
+use App\Models\SeasonRound;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use Illuminate\Contracts\View\View;
@@ -54,12 +55,17 @@ class LeagueController extends Controller
             ->with(['homeTeam', 'awayTeam'])
             ->orderBy('scheduled_at')
             ->get();
+        $seasonRounds = SeasonRound::query()
+            ->where('season_id', $season->id)
+            ->with('realMatch')
+            ->orderBy('round_number')
+            ->get();
 
         $players = $team ? $team->players()->with('player')->get() : collect();
         $nextMatch = $matches->first(fn ($match) => $match->status === 'scheduled' && $match->scheduled_at->isFuture() && (! $team || $match->home_team_id === $team->id || $match->away_team_id === $team->id));
         $selection = $team && $nextMatch ? $nextMatch->selections()->where('team_id', $team->id)->with('players')->first() : null;
 
-        return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'players', 'nextMatch', 'selection'));
+        return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'seasonRounds', 'players', 'nextMatch', 'selection'));
     }
 
     public function match(Request $request, string $leagueSlug, MatchGame $match): View
