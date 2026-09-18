@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['season_league_id', 'round_number', 'home_team_id', 'away_team_id', 'scheduled_at', 'status', 'home_score', 'away_score'])]
+#[Fillable(['season_league_id', 'league_round_id', 'round_number', 'home_team_id', 'away_team_id', 'scheduled_at', 'status', 'home_score', 'away_score'])]
 class MatchGame extends Model
 {
     protected $table = 'matches';
@@ -20,6 +20,11 @@ class MatchGame extends Model
     public function seasonLeague(): BelongsTo
     {
         return $this->belongsTo(SeasonLeague::class);
+    }
+
+    public function leagueRound(): BelongsTo
+    {
+        return $this->belongsTo(LeagueRound::class);
     }
 
     public function homeTeam(): BelongsTo
