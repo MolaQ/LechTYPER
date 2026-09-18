@@ -39,6 +39,6 @@ class MatchGame extends Model
 
     public function selections(): HasMany
     {
-        return $this->hasMany(MatchSelection::class);
+        return $this->hasMany(MatchSelection::class, 'match_id');
     }
 }
