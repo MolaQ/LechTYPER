@@ -138,7 +138,7 @@
                                     </thead>
                                     <tbody>
                                         @foreach($standings as $standing)
-                                            <tr class="{{ $standing->team_id === $team->id ? 'table-primary' : '' }}">
+                                            <tr class="{{ $team && $standing->team_id === $team->id ? 'table-primary' : '' }}">
                                                 <td>{{ $loop->iteration }}</td>
                                                 <td>{{ $standing->team->name }}</td>
                                                 <td>{{ $standing->played }}</td>
