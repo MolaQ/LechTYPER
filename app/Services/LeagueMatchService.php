@@ -30,6 +30,11 @@ class LeagueMatchService
             $awayScore = $this->scoreSelection($match, $match->away_team_id);
             $match->update(['status' => 'completed', 'home_score' => $homeScore, 'away_score' => $awayScore]);
             $this->updateStandings($match, $homeScore, $awayScore);
+
+            $match->loadMissing('seasonLeague.league');
+            if ($match->seasonLeague->league->level === 11) {
+                app(SwissLeagueService::class)->generateNextRound($match->seasonLeague);
+            }
         });
     }
 
