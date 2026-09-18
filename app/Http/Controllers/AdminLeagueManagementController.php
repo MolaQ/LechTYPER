@@ -11,6 +11,7 @@ use App\Models\SeasonRound;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
+use App\Models\RealMatch;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -321,7 +322,48 @@ class AdminLeagueManagementController extends Controller
         abort_if($season === null, 404, 'Brak skonfigurowanych sezonów.');
         $this->ensureSeasonRounds($season);
 
-        return view('admin.leagues.schedule', compact('seasons', 'season'));
+        return view('admin.leagues.schedule', [
+            'seasons' => $seasons,
+            'season' => $season,
+            'rounds' => $season->seasonRounds()->with('realMatch')->get(),
+            'realMatches' => $season->realMatches()->with('seasonRound')->get(),
+        ]);
+    }
+
+    public function storeRealMatch(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'season_id' => ['required', 'integer', 'exists:seasons,id'],
+            'scheduled_at' => ['required', 'date'],
+            'home_team' => ['required', 'string', 'max:120'],
+            'away_team' => ['required', 'string', 'max:120'],
+            'competition' => ['required', Rule::in(self::COMPETITIONS)],
+            'season_round_id' => ['nullable', 'integer', 'exists:season_rounds,id'],
+        ]);
+
+        if (! empty($data['season_round_id']) && RealMatch::query()->where('season_round_id', $data['season_round_id'])->exists()) {
+            return back()->withErrors(['season_round_id' => 'Ta kolejka ma już przypisany mecz rzeczywisty.']);
+        }
+
+        RealMatch::create($data);
+
+        return back()->with('status', 'Mecz rzeczywisty został dodany.');
+    }
+
+    public function assignRealMatch(Request $request, RealMatch $realMatch): RedirectResponse
+    {
+        $data = $request->validate([
+            'season_round_id' => ['required', 'integer', 'exists:season_rounds,id'],
+        ]);
+
+        $round = SeasonRound::query()->where('season_id', $realMatch->season_id)->findOrFail($data['season_round_id']);
+        if ($round->realMatch()->where('id', '<>', $realMatch->id)->exists()) {
+            return back()->withErrors(['season_round_id' => 'Ta kolejka ma już przypisany mecz rzeczywisty.']);
+        }
+
+        $realMatch->update(['season_round_id' => $round->id]);
+
+        return back()->with('status', 'Mecz Lecha został przypisany do kolejki.');
     }
 
     public function updateSeasonRound(Request $request, SeasonRound $round): RedirectResponse
