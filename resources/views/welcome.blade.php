@@ -149,9 +149,36 @@
                         <div class="row text-muted-custom small border-bottom pb-2">
                             <span class="col-1">#</span><span class="col">DRUŻYNA</span><span class="col-2 text-end">PKT</span>
                         </div>
-                        <div class="team-row row align-items-center py-2"><b class="col-1">1</b><span class="team-name col"><i class="team-dot lech me-2"></i>Lech Poznań</span><strong class="col-2 text-end">18</strong></div>
-                        <div class="team-row row align-items-center py-2"><b class="col-1">2</b><span class="team-name col"><i class="team-dot me-2"></i>Jagiellonia</span><strong class="col-2 text-end">16</strong></div>
-                        <div class="team-row row align-items-center py-2"><b class="col-1">3</b><span class="team-name col"><i class="team-dot me-2"></i>Raków</span><strong class="col-2 text-end">15</strong></div>
+                        @forelse($leaguePositions as $position)
+                            @php $standing = $standings->get($position->team_id); @endphp
+                            <div class="team-row row align-items-center py-2">
+                                <b class="col-1">{{ $loop->iteration }}</b>
+                                <span class="team-name col"><i class="team-dot {{ $loop->first ? 'lech' : '' }} me-2"></i>{{ $position->displayName() }}</span>
+                                <strong class="col-2 text-end">{{ $standing?->points ?? 0 }}</strong>
+                            </div>
+                        @empty
+                            <p class="text-muted-custom small mb-0 mt-3">Brak drużyn w tabeli.</p>
+                        @endforelse
+                    </section>
+
+                    <section class="side-card p-3 p-md-4 mt-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <p class="eyebrow mb-2">{{ $season->name }}</p>
+                                <h3 class="font-display h5 mb-0">Terminarz ligi</h3>
+                            </div>
+                            <a class="text-blue small fw-semibold" href="{{ route('league.index') }}">Pełny terminarz →</a>
+                        </div>
+                        <div class="d-grid gap-2">
+                            @forelse($leagueMatches as $match)
+                                <a href="{{ route('league.match', [$league->slug, $match->id]) }}" class="d-flex justify-content-between gap-3 py-2 border-bottom text-decoration-none">
+                                    <span class="small"><span class="text-muted-custom d-block">Kolejka {{ $match->round_number }}</span>{{ $match->homeTeam->name }} - {{ $match->awayTeam->name }}</span>
+                                    <span class="small text-muted-custom text-nowrap">{{ $match->scheduled_at->format('d.m H:i') }}</span>
+                                </a>
+                            @empty
+                                <p class="text-muted-custom small mb-0">Brak zaplanowanych meczów.</p>
+                            @endforelse
+                        </div>
                     </section>
 
                     <section class="mini-panel">
