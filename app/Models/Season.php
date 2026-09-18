@@ -23,4 +23,9 @@ class Season extends Model
     {
         return $this->hasMany(SeasonRound::class)->orderBy('round_number');
     }
+
+    public function realMatches(): HasMany
+    {
+        return $this->hasMany(RealMatch::class)->orderBy('scheduled_at');
+    }
 }
