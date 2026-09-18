@@ -29,4 +29,9 @@ class SeasonLeague extends Model
     {
         return $this->hasMany(MatchGame::class);
     }
+
+    public function rounds(): HasMany
+    {
+        return $this->hasMany(LeagueRound::class)->orderBy('round_number');
+    }
 }
