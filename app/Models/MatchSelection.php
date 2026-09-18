@@ -17,7 +17,7 @@ class MatchSelection extends Model
 
     public function match(): BelongsTo
     {
-        return $this->belongsTo(MatchGame::class);
+        return $this->belongsTo(MatchGame::class, 'match_id');
     }
 
     public function team(): BelongsTo
