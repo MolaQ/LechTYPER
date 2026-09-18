@@ -154,6 +154,16 @@
                         <div class="league-panel fixture-panel p-4">
                             <p class="eyebrow mb-2">Terminarz</p>
                             <h2 class="font-display h4 mb-3">Kolejeki i mecze</h2>
+                            @if($seasonRounds->isNotEmpty())
+                                <div class="d-grid gap-2 mb-4">
+                                    @foreach($seasonRounds as $seasonRound)
+                                        <div class="border rounded-3 p-3">
+                                            <div class="d-flex justify-content-between align-items-center gap-3"><strong>Kolejka {{ $seasonRound->round_number }}</strong><span class="small text-muted-custom">{{ $seasonRound->realMatch ? $seasonRound->realMatch->home_team.' - '.$seasonRound->realMatch->away_team : 'Mecz Lecha nieprzypisany' }}</span></div>
+                                            @if($seasonRound->realMatch)<small class="text-muted-custom">{{ $seasonRound->realMatch->competition }} · źródło punktacji typów</small>@endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
                             <div class="d-grid gap-3">
                                 @forelse($matches as $match)
                                     <a href="{{ route('league.match', [$league->slug, $match->id]) }}" class="match-row d-flex justify-content-between align-items-center p-3 rounded-3 border">
