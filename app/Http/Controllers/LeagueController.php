@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\League;
+use App\Models\LeagueRound;
 use App\Models\MatchGame;
 use App\Models\MatchSelection;
 use App\Models\Season;
+use App\Models\SeasonLeague;
 use App\Models\SeasonRound;
 use App\Models\SeasonTeam;
 use App\Models\Team;
+use App\Models\User;
+use App\Services\SwissLeagueService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\RedirectResponse;
@@ -18,9 +22,25 @@ class LeagueController extends Controller
 {
     public function home(Request $request): View
     {
+        $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
+        $league = League::query()->where('slug', 'ekstraklasa')->firstOrFail();
+        $seasonLeague = $season->seasonLeagues()->where('league_id', $league->id)->firstOrFail();
+        $this->ensureSeasonLeagueMatches($seasonLeague);
         $leagueTeam = $request->user() ? $this->teamFor($request) : null;
+        $standings = SeasonTeam::query()
+            ->where('season_league_id', $seasonLeague->id)
+            ->with('team')
+            ->orderByDesc('points')
+            ->orderByDesc('score_for')
+            ->orderBy('team_id')
+            ->get();
+        $leaguePositions = $seasonLeague->positions()->with('team')->get();
+        $leagueMatches = $seasonLeague->matches()
+            ->with(['homeTeam', 'awayTeam'])
+            ->orderBy('scheduled_at')
+            ->get();
 
-        return view('welcome', compact('leagueTeam'));
+        return view('welcome', compact('leagueTeam', 'season', 'league', 'standings', 'leaguePositions', 'leagueMatches'));
     }
 
     public function index(Request $request): View
@@ -36,6 +56,7 @@ class LeagueController extends Controller
         $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
         $league = League::query()->where('slug', $leagueSlug)->firstOrFail();
         $seasonLeague = $season->seasonLeagues()->where('league_id', $league->id)->firstOrFail();
+        $this->ensureSeasonLeagueMatches($seasonLeague);
         $team = $request->user() ? $this->teamFor($request) : null;
         $myTeamStanding = $team ? SeasonTeam::query()
             ->where('team_id', $team->id)
@@ -109,11 +130,102 @@ class LeagueController extends Controller
     {
         $user = $request->user();
         $team = Team::firstOrCreate(['user_id' => $user->id], ['name' => $user->name]);
+
+        if (in_array($user->role, ['admin', 'superadmin'], true)) {
+            return $team;
+        }
+
         $season = Season::query()->where('status', 'active')->firstOrFail();
         $podworkowa = League::query()->where('level', 11)->firstOrFail();
         $seasonLeague = $season->seasonLeagues()->where('league_id', $podworkowa->id)->firstOrFail();
         SeasonTeam::firstOrCreate(['season_league_id' => $seasonLeague->id, 'team_id' => $team->id]);
 
         return $team;
+    }
+
+    private function ensureSeasonLeagueMatches(SeasonLeague $seasonLeague): void
+    {
+        $seasonLeague->loadMissing('league');
+
+        if ($seasonLeague->league->level === 11) {
+            app(SwissLeagueService::class)->generateNextRound($seasonLeague);
+
+            return;
+        }
+
+        if ($seasonLeague->rounds()->exists() || $seasonLeague->matches()->exists()) {
+            return;
+        }
+
+        $positions = $seasonLeague->positions()->orderBy('position')->get();
+        if ($positions->isEmpty()) {
+            for ($position = 1; $position <= 10; $position++) {
+                $seasonLeague->positions()->create([
+                    'position' => $position,
+                    'bot_name' => 'Chłopaki z orlika',
+                    'inherited_points' => 0,
+                ]);
+            }
+            $positions = $seasonLeague->positions()->orderBy('position')->get();
+        }
+
+        foreach ($positions as $position) {
+            if ($position->team_id !== null) {
+                continue;
+            }
+
+            $botUser = User::query()->firstOrCreate(
+                ['email' => sprintf('bot.%d.%d@local.test', $seasonLeague->id, $position->position)],
+                [
+                    'name' => 'Chłopaki z orlika',
+                    'password' => bcrypt('bot-'.$seasonLeague->id.'-'.$position->position),
+                    'role' => 'user',
+                ],
+            );
+
+            $botTeam = Team::firstOrCreate(['user_id' => $botUser->id], ['name' => $position->bot_name ?: 'Chłopaki z orlika']);
+            $position->update(['team_id' => $botTeam->id]);
+        }
+
+        $teamIds = $positions->pluck('team_id')->filter()->values()->all();
+        if ($teamIds === []) {
+            return;
+        }
+
+        $roundTeams = $teamIds;
+        if (count($roundTeams) % 2 !== 0) {
+            $roundTeams[] = null;
+        }
+
+        $roundCount = count($roundTeams) - 1;
+        for ($round = 0; $round < $roundCount; $round++) {
+            $leagueRound = LeagueRound::create([
+                'season_league_id' => $seasonLeague->id,
+                'round_number' => $round + 1,
+                'scheduled_at' => now()->addDays($round),
+            ]);
+
+            $half = intdiv(count($roundTeams), 2);
+            for ($index = 0; $index < $half; $index++) {
+                $homeTeamId = $roundTeams[$index];
+                $awayTeamId = $roundTeams[count($roundTeams) - 1 - $index];
+                if ($homeTeamId === null || $awayTeamId === null) {
+                    continue;
+                }
+
+                MatchGame::create([
+                    'season_league_id' => $seasonLeague->id,
+                    'league_round_id' => $leagueRound->id,
+                    'round_number' => $round + 1,
+                    'home_team_id' => $homeTeamId,
+                    'away_team_id' => $awayTeamId,
+                    'scheduled_at' => now()->addDays($round),
+                    'status' => 'scheduled',
+                ]);
+            }
+
+            $lastTeamId = array_pop($roundTeams);
+            array_splice($roundTeams, 1, 0, [$lastTeamId]);
+        }
     }
 }
