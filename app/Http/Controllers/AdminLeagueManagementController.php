@@ -13,6 +13,7 @@ use App\Models\SeasonRound;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\SwissLeagueService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,7 @@ class AdminLeagueManagementController extends Controller
             ?? $seasons->first();
         abort_if($season === null, 404, 'Brak skonfigurowanych sezonów.');
         $this->ensureSeasonRounds($season);
+        $this->ensureSeasonLeagueSchedules($season);
 
         $seasonLeagues = $season->seasonLeagues->sortBy('league.level')->values();
         $selectedSeasonLeague = $seasonLeagues->firstWhere('league.slug', $request->string('league')->toString())
@@ -149,27 +151,52 @@ class AdminLeagueManagementController extends Controller
         $seasonLeague = SeasonLeague::query()->findOrFail($data['season_league_id']);
         $this->ensureLeaguePositions($seasonLeague);
         $position = LeaguePosition::query()->where('season_league_id', $seasonLeague->id)->where('position', $data['position'])->firstOrFail();
-        if ($position->team_id !== null) {
-            return back()->withErrors(['position' => 'Wybrana pozycja jest już zajęta.']);
+        $isBotPosition = $this->isBotPosition($position);
+        if ($position->team_id !== null && ! $isBotPosition) {
+            return back()->withErrors(['position' => 'Wybrana pozycja jest już zajęta przez realną drużynę.']);
         }
 
         $user = User::query()->findOrFail($data['user_id']);
         $team = Team::firstOrCreate(['user_id' => $user->id], ['name' => $user->name]);
+        $botTeamId = $isBotPosition ? $position->team_id : null;
 
-        $alreadyInSeason = SeasonTeam::query()
-            ->whereHas('seasonLeague', fn ($query) => $query->where('season_id', $seasonLeague->season_id))
+        $existingSeasonTeam = SeasonTeam::query()
+            ->where('season_league_id', $seasonLeague->id)
             ->where('team_id', $team->id)
+            ->first();
+
+        $alreadyInAnotherLeague = SeasonTeam::query()
+            ->where('team_id', $team->id)
+            ->where('season_league_id', '<>', $seasonLeague->id)
+            ->whereHas('seasonLeague', fn ($query) => $query->where('season_id', $seasonLeague->season_id))
             ->exists();
 
-        if ($alreadyInSeason) {
+        if ($alreadyInAnotherLeague && in_array($user->role, ['admin', 'superadmin'], true)) {
+            $adminBackyardAssignment = SeasonTeam::query()
+                ->where('team_id', $team->id)
+                ->where('season_league_id', '<>', $seasonLeague->id)
+                ->whereHas('seasonLeague.league', fn ($query) => $query->where('level', 11))
+                ->first();
+
+            if ($adminBackyardAssignment) {
+                LeaguePosition::query()
+                    ->where('season_league_id', $adminBackyardAssignment->season_league_id)
+                    ->where('team_id', $team->id)
+                    ->update(['team_id' => null]);
+                $adminBackyardAssignment->delete();
+                $alreadyInAnotherLeague = false;
+            }
+        }
+
+        if ($alreadyInAnotherLeague) {
             return back()->withErrors(['team' => 'Ta drużyna jest już przypisana do innej ligi w tym sezonie.']);
         }
 
-        $existingSeasonTeam = SeasonTeam::query()->where('season_league_id', $seasonLeague->id)->where('team_id', $team->id)->first();
         if ($existingSeasonTeam) {
             LeaguePosition::query()->where('season_league_id', $seasonLeague->id)->where('team_id', $team->id)->update(['team_id' => null]);
             $existingSeasonTeam->update(['position' => $position->position]);
             $position->update(['team_id' => $team->id]);
+            $this->replaceTeamInSchedule($seasonLeague, $botTeamId, $team->id);
 
             return back()->with('status', "Drużyna {$team->name} została przypisana do pozycji {$position->position}.");
         }
@@ -180,8 +207,42 @@ class AdminLeagueManagementController extends Controller
             'position' => $position->position,
         ]);
         $position->update(['team_id' => $team->id]);
+        $this->replaceTeamInSchedule($seasonLeague, $botTeamId, $team->id);
 
         return back()->with('status', "Drużyna {$team->name} została dodana do ligi.");
+    }
+
+    private function replaceTeamInSchedule(SeasonLeague $seasonLeague, ?int $oldTeamId, int $newTeamId): void
+    {
+        if ($oldTeamId === null || $oldTeamId === $newTeamId) {
+            return;
+        }
+
+        MatchGame::query()
+            ->where('season_league_id', $seasonLeague->id)
+            ->where('home_team_id', $oldTeamId)
+            ->update(['home_team_id' => $newTeamId]);
+
+        MatchGame::query()
+            ->where('season_league_id', $seasonLeague->id)
+            ->where('away_team_id', $oldTeamId)
+            ->update(['away_team_id' => $newTeamId]);
+    }
+
+    private function isBotPosition(LeaguePosition $position): bool
+    {
+        $team = $position->team()->with('user')->first();
+        if ($team === null || $team->user === null) {
+            return false;
+        }
+
+        $email = strtolower((string) $team->user->email);
+        $name = strtolower((string) $team->name);
+
+        return str_starts_with($email, 'bot.')
+            || str_contains($email, 'bot.')
+            || str_contains($name, 'chłopaki z orlika')
+            || str_contains($name, 'chlopaki z orlika');
     }
 
     private function ensureLeaguePositions(SeasonLeague $seasonLeague): void
@@ -191,24 +252,6 @@ class AdminLeagueManagementController extends Controller
                 ['season_league_id' => $seasonLeague->id, 'position' => $position],
                 ['bot_name' => 'Chłopaki z orlika', 'inherited_points' => 0],
             );
-        }
-
-        foreach ($seasonLeague->positions()->orderBy('position')->get() as $leaguePosition) {
-            if ($leaguePosition->team_id !== null) {
-                continue;
-            }
-
-            $botUser = User::query()->firstOrCreate(
-                ['email' => sprintf('bot.%d.%d@local.test', $seasonLeague->id, $leaguePosition->position)],
-                [
-                    'name' => 'Chłopaki z orlika',
-                    'password' => bcrypt('bot-'. $seasonLeague->id . '-' . $leaguePosition->position),
-                    'role' => 'user',
-                ],
-            );
-
-            $botTeam = Team::firstOrCreate(['user_id' => $botUser->id], ['name' => $leaguePosition->bot_name ?: 'Chłopaki z orlika']);
-            $leaguePosition->update(['team_id' => $botTeam->id]);
         }
 
         foreach ($seasonLeague->teams()->whereNull('position')->orderBy('id')->get() as $seasonTeam) {
@@ -224,6 +267,25 @@ class AdminLeagueManagementController extends Controller
             $freePosition->update(['team_id' => $seasonTeam->team_id]);
             $seasonTeam->update(['position' => $freePosition->position]);
         }
+    }
+
+    private function ensureBotPosition(LeaguePosition $position, SeasonLeague $seasonLeague): void
+    {
+        if ($position->team_id !== null) {
+            return;
+        }
+
+        $botUser = User::query()->firstOrCreate(
+            ['email' => sprintf('bot.%d.%d@local.test', $seasonLeague->id, $position->position)],
+            [
+                'name' => 'Chłopaki z orlika',
+                'password' => bcrypt('bot-'.$seasonLeague->id.'-'.$position->position),
+                'role' => 'user',
+            ],
+        );
+
+        $botTeam = Team::firstOrCreate(['user_id' => $botUser->id], ['name' => $position->bot_name ?: 'Chłopaki z orlika']);
+        $position->update(['team_id' => $botTeam->id]);
     }
 
     public function removeTeamFromLeague(SeasonTeam $seasonTeam, DatabaseManager $database): RedirectResponse
@@ -260,7 +322,7 @@ class AdminLeagueManagementController extends Controller
             'rounds' => ['required', 'integer', 'min:1', 'max:255'],
         ]);
 
-        $database->transaction(function () use ($data): void {
+        $database->transaction(function () use ($data, $database): void {
             $previousSeason = Season::query()->where('status', 'active')->with('seasonLeagues.league')->first();
             $newSeason = Season::create($data + ['status' => 'planned']);
 
@@ -328,13 +390,27 @@ class AdminLeagueManagementController extends Controller
 
     private function generateLeagueMatches(SeasonLeague $seasonLeague, DatabaseManager $database): void
     {
+        $seasonLeague->loadMissing('league');
+
+        if ($seasonLeague->league->level === 11) {
+            app(SwissLeagueService::class)->generateNextRound($seasonLeague);
+
+            return;
+        }
+
         if ($seasonLeague->rounds()->exists() || $seasonLeague->matches()->exists()) {
             return;
         }
 
         $database->transaction(function () use ($seasonLeague): void {
             $this->ensureLeaguePositions($seasonLeague);
-            $teamIds = $seasonLeague->positions()->orderBy('position')->pluck('team_id')->filter()->all();
+            $positions = $seasonLeague->positions()->orderBy('position')->get();
+
+            foreach ($positions as $position) {
+                $this->ensureBotPosition($position, $seasonLeague);
+            }
+
+            $teamIds = $positions->pluck('team_id')->filter()->values()->all();
             if ($teamIds === []) {
                 return;
             }
@@ -409,6 +485,7 @@ class AdminLeagueManagementController extends Controller
             ?? $seasons->first();
         abort_if($season === null, 404, 'Brak skonfigurowanych sezonów.');
         $this->ensureSeasonRounds($season);
+        $this->ensureSeasonLeagueSchedules($season);
 
         return view('admin.leagues.schedule', [
             'seasons' => $seasons,
@@ -479,6 +556,46 @@ class AdminLeagueManagementController extends Controller
 
         for ($round = 1; $round <= max(1, (int) $season->getRawOriginal('rounds')); $round++) {
             SeasonRound::create(['season_id' => $season->id, 'round_number' => $round]);
+        }
+    }
+
+    private function ensureSeasonLeagueSchedules(Season $season): void
+    {
+        foreach ($season->seasonLeagues()->get() as $seasonLeague) {
+            $this->cleanupDuplicateSeasonTeams($seasonLeague);
+
+            if ($seasonLeague->rounds()->exists() || $seasonLeague->matches()->exists()) {
+                continue;
+            }
+
+            $this->generateLeagueMatches($seasonLeague, app(DatabaseManager::class));
+        }
+    }
+
+    private function cleanupDuplicateSeasonTeams(SeasonLeague $seasonLeague): void
+    {
+        $teamIds = $seasonLeague->teams()->pluck('team_id');
+        if ($teamIds->isEmpty()) {
+            return;
+        }
+
+        $duplicateTeamIds = SeasonTeam::query()
+            ->whereIn('team_id', $teamIds)
+            ->whereHas('seasonLeague', fn ($query) => $query->where('season_id', $seasonLeague->season_id))
+            ->select(['id', 'season_league_id', 'team_id'])
+            ->get()
+            ->groupBy('team_id')
+            ->filter(fn ($rows) => $rows->count() > 1)
+            ->keys();
+
+        foreach ($duplicateTeamIds as $teamId) {
+            $rows = SeasonTeam::query()
+                ->where('team_id', $teamId)
+                ->whereHas('seasonLeague', fn ($query) => $query->where('season_id', $seasonLeague->season_id))
+                ->orderBy('id')
+                ->get();
+
+            $rows->slice(1)->each(fn (SeasonTeam $seasonTeam) => $seasonTeam->delete());
         }
     }
 }
