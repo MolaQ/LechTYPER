@@ -7,6 +7,7 @@ use App\Models\MatchSelection;
 use App\Models\Season;
 use App\Models\SeasonLeague;
 use App\Models\SeasonRound;
+use App\Models\RealMatch;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
@@ -241,4 +242,32 @@ it('accepts only the configured competition types for a season round', function 
         'real_away_team' => 'Lech Poznań',
         'competition' => 'Nieznane rozgrywki',
     ])->assertSessionHasErrors('competition');
+});
+
+it('adds a real Lech match and assigns it to one season round', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $season = Season::query()->where('status', 'active')->firstOrFail();
+    $this->actingAs($admin)->get(route('admin.schedule.index'))->assertOk();
+    $round = SeasonRound::query()->where('season_id', $season->id)->where('round_number', 1)->firstOrFail();
+
+    $this->actingAs($admin)->post(route('admin.schedule.matches.store'), [
+        'season_id' => $season->id,
+        'scheduled_at' => '2026-09-25 20:00',
+        'home_team' => 'Crystal Palace',
+        'away_team' => 'Lech Poznań',
+        'competition' => 'Liga Europy',
+        'season_round_id' => $round->id,
+    ])->assertRedirect();
+
+    $realMatch = RealMatch::query()->firstOrFail();
+    expect($realMatch->season_round_id)->toBe($round->id);
+
+    $this->actingAs($admin)->post(route('admin.schedule.matches.store'), [
+        'season_id' => $season->id,
+        'scheduled_at' => '2026-10-02 20:00',
+        'home_team' => 'Lech Poznań',
+        'away_team' => 'Rywal',
+        'competition' => 'Liga Europy',
+        'season_round_id' => $round->id,
+    ])->assertSessionHasErrors('season_round_id');
 });
