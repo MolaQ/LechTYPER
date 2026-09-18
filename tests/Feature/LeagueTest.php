@@ -25,5 +25,14 @@ it('keeps the league section on the homepage for a logged-in fan', function () {
 });
 
 it('exposes the league link to guests on the homepage', function () {
-    $this->get(route('home'))->assertOk()->assertSee('Liga kiboli');
+    $response = $this->get(route('home'));
+
+    $response->assertOk()
+        ->assertSee('Liga kiboli')
+        ->assertSee('Tabela ligowa')
+        ->assertSee('Terminarz ligi')
+        ->assertSee('Chłopaki z orlika');
+
+    expect($response->viewData('leaguePositions'))->toHaveCount(10);
+    expect($response->viewData('leagueMatches'))->toHaveCount(45);
 });
