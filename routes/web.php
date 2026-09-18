@@ -44,6 +44,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/admin/ligi/terminarz/generuj', [AdminLeagueManagementController::class, 'generateSchedule'])->name('admin.leagues.schedule.generate')->middleware('admin');
     Route::put('/admin/ligi/kolejki/{round}', [AdminLeagueManagementController::class, 'updateRound'])->name('admin.leagues.rounds.update')->middleware('admin');
     Route::get('/admin/terminarz', [AdminLeagueManagementController::class, 'schedule'])->name('admin.schedule.index')->middleware('admin');
+    Route::post('/admin/terminarz/mecze', [AdminLeagueManagementController::class, 'storeRealMatch'])->name('admin.schedule.matches.store')->middleware('admin');
+    Route::patch('/admin/terminarz/mecze/{realMatch}/kolejka', [AdminLeagueManagementController::class, 'assignRealMatch'])->name('admin.schedule.matches.round.update')->middleware('admin');
     Route::put('/admin/terminarz/kolejki/{round}', [AdminLeagueManagementController::class, 'updateSeasonRound'])->name('admin.schedule.rounds.update')->middleware('admin');
     Route::put('/admin/uzytkownicy/{user}/nazwa-x', [AuthController::class, 'updateXUsername'])->name('admin.users.x-username.update')->middleware('admin');
     Route::view('/admin/uzytkownicy', 'admin.users.index')->name('admin.users.index')->middleware('admin');
