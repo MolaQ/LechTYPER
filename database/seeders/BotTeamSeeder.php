@@ -2,9 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\League;
-use App\Models\Season;
-use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -276,8 +273,6 @@ class BotTeamSeeder extends Seeder
             'Fyrtel Squad',
         ];
 
-        $botTeams = collect();
-
         foreach ($names as $index => $name) {
             $number = $index + 1;
             $user = User::query()->updateOrCreate(
@@ -289,23 +284,10 @@ class BotTeamSeeder extends Seeder
                 ],
             );
 
-            $botTeams->push(Team::query()->updateOrCreate(
+            Team::query()->updateOrCreate(
                 ['user_id' => $user->id],
                 ['name' => $name],
-            ));
-        }
-
-        $season = Season::query()->where('status', 'active')->first();
-        $backyardLeague = League::query()->where('level', 11)->first();
-        $seasonLeague = $season?->seasonLeagues()->where('league_id', $backyardLeague?->id)->first();
-
-        if ($seasonLeague !== null) {
-            foreach ($botTeams as $botTeam) {
-                SeasonTeam::query()->firstOrCreate([
-                    'season_league_id' => $seasonLeague->id,
-                    'team_id' => $botTeam->id,
-                ]);
-            }
+            );
         }
     }
 }

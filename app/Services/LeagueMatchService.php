@@ -18,6 +18,7 @@ class LeagueMatchService
     {
         DB::transaction(function () use ($match, $stats): void {
             abort_unless($match->status === 'scheduled', 422, 'Mecz został już rozliczony.');
+            $seasonLeagueId = (int) $match->season_league_id;
 
             foreach ($stats as $stat) {
                 PlayerMatchStat::updateOrCreate(
@@ -29,7 +30,8 @@ class LeagueMatchService
             $homeScore = $this->scoreSelection($match, $match->home_team_id);
             $awayScore = $this->scoreSelection($match, $match->away_team_id);
             $match->update(['status' => 'completed', 'home_score' => $homeScore, 'away_score' => $awayScore]);
-            $this->updateStandings($match, $homeScore, $awayScore);
+            $match = $match->fresh();
+            $this->updateStandings($match, $seasonLeagueId, $homeScore, $awayScore);
 
             $match->loadMissing('seasonLeague.league');
             if ($match->seasonLeague->league->level === 11) {
@@ -54,6 +56,12 @@ class LeagueMatchService
     private function scoreSelection(MatchGame $match, int $teamId): float
     {
         $selection = $match->selections()->where('team_id', $teamId)->with('players')->first();
+        $team = Team::query()->with('user')->findOrFail($teamId);
+
+        if ($selection === null && $this->isBot($team)) {
+            $selection = $this->createBotSelection($match, $team);
+        }
+
         if ($selection === null) {
             $this->penalizeMissingSelection($match, $teamId);
 
@@ -66,14 +74,40 @@ class LeagueMatchService
             ->sum('points');
     }
 
-    private function updateStandings(MatchGame $match, float $homeScore, float $awayScore): void
+    private function createBotSelection(MatchGame $match, Team $team): MatchSelection
+    {
+        $selection = MatchSelection::create([
+            'match_id' => $match->id,
+            'team_id' => $team->id,
+            'submitted_at' => now(),
+        ]);
+
+        $selection->players()->createMany(
+            $team->players()
+                ->whereHas('player', fn ($query) => $query->where('is_active', true))
+                ->inRandomOrder()
+                ->limit(3)
+                ->pluck('player_id')
+                ->map(fn (int $playerId): array => ['player_id' => $playerId])
+                ->all(),
+        );
+
+        return $selection->load('players');
+    }
+
+    private function isBot(Team $team): bool
+    {
+        return str_starts_with(strtolower((string) $team->user?->email), 'bot.');
+    }
+
+    private function updateStandings(MatchGame $match, int $seasonLeagueId, float $homeScore, float $awayScore): void
     {
         $home = $homeScore <=> $awayScore;
         $homePoints = $home > 0 ? config('league.points.win') : ($home === 0 ? config('league.points.draw') : config('league.points.loss'));
         $awayPoints = $home < 0 ? config('league.points.win') : ($home === 0 ? config('league.points.draw') : config('league.points.loss'));
 
-        $this->updateTeamStanding($match->seasonLeague_id, $match->home_team_id, $homePoints, $homeScore, $awayScore, $home);
-        $this->updateTeamStanding($match->seasonLeague_id, $match->away_team_id, $awayPoints, $awayScore, $homeScore, -$home);
+        $this->updateTeamStanding($seasonLeagueId, $match->home_team_id, $homePoints, $homeScore, $awayScore, $home);
+        $this->updateTeamStanding($seasonLeagueId, $match->away_team_id, $awayPoints, $awayScore, $homeScore, -$home);
     }
 
     private function updateTeamStanding(int $seasonLeagueId, int $teamId, int $points, float $scoreFor, float $scoreAgainst, int $result): void

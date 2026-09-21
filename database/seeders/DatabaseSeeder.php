@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             SeasonSeeder::class,
             DemoLeagueDataSeeder::class,
             BotTeamSeeder::class,
+            BotLeagueAssignmentSeeder::class,
         ]);
     }
 }
