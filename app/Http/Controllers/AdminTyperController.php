@@ -75,13 +75,21 @@ class AdminTyperController extends Controller
 
     public function updateResult(Request $request, LechMatch $match): RedirectResponse
     {
-        $data = $request->validate([
+        $rules = [
             'result_home' => ['required', 'integer', 'min:0', 'max:99'],
             'result_away' => ['required', 'integer', 'min:0', 'max:99'],
             'status' => ['required', 'in:scheduled,completed,cancelled'],
             'correct_answers' => ['array'],
             'correct_answers.*' => ['nullable', 'boolean'],
-        ]);
+        ];
+
+        if ($request->input('status') === 'completed') {
+            foreach ($match->bonusQuestions as $question) {
+                $rules["correct_answers.{$question->id}"] = ['required', 'boolean'];
+            }
+        }
+
+        $data = $request->validate($rules);
 
         $match->update([
             'result_home' => $data['result_home'],
