@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Models\BonusQuestion;
 use App\Models\Competition;
 use App\Models\LechMatch;
 use App\Models\Prediction;
 use App\Models\User;
+use App\Models\UserAnswer;
 
 it('assigns a Lech match to a specific round and shows it in the admin list', function () {
     $admin = User::factory()->create(['role' => 'admin']);
@@ -69,4 +71,69 @@ it('lets an admin preview every prediction submitted for a match', function () {
         ->assertOk()
         ->assertSee('Kibic Typer')
         ->assertSee('3:1');
+});
+
+it('links the admin schedule to submitted prediction preview', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $competition = Competition::create(['name' => 'Terminarz Liga', 'slug' => 'terminarz-liga']);
+    $match = LechMatch::create([
+        'competition_id' => $competition->id,
+        'opponent' => 'Rywal Terminarza',
+        'scheduled_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.schedule.index'))
+        ->assertOk()
+        ->assertSee(route('admin.typer.matches.predictions', $match), false)
+        ->assertSee('Podgląd typów');
+});
+
+it('allows an admin to set match-specific bonus answers with the result', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $competition = Competition::create(['name' => 'Odpowiedzi Liga', 'slug' => 'odpowiedzi-liga']);
+    $match = LechMatch::create([
+        'competition_id' => $competition->id,
+        'opponent' => 'Rywal Odpowiedzi',
+        'scheduled_at' => now()->addDay(),
+    ]);
+    $yesQuestion = BonusQuestion::create([
+        'match_id' => $match->id,
+        'type' => 'offensive',
+        'question_text' => 'Czy Lech oddał więcej strzałów?',
+    ]);
+    $noQuestion = BonusQuestion::create([
+        'match_id' => $match->id,
+        'type' => 'defensive',
+        'question_text' => 'Czy Lech zachował czyste konto?',
+    ]);
+    $fan = User::factory()->create(['name' => 'Fan Z Wynikiem']);
+    $prediction = Prediction::create([
+        'user_id' => $fan->id,
+        'match_id' => $match->id,
+        'home_score' => 3,
+        'away_score' => 1,
+    ]);
+    UserAnswer::create(['user_id' => $fan->id, 'bonus_question_id' => $yesQuestion->id, 'answer' => true]);
+    UserAnswer::create(['user_id' => $fan->id, 'bonus_question_id' => $noQuestion->id, 'answer' => false]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.typer.matches.result.update', $match), [
+            'result_home' => 2,
+            'result_away' => 1,
+            'status' => 'completed',
+            'correct_answers' => [
+                $yesQuestion->id => '1',
+                $noQuestion->id => '0',
+            ],
+        ])
+        ->assertRedirect();
+
+    expect($match->fresh()->result_home)->toBe(2)
+        ->and($match->fresh()->result_away)->toBe(1)
+        ->and($yesQuestion->fresh()->correct_answer)->toBeTrue()
+        ->and($noQuestion->fresh()->correct_answer)->toBeFalse()
+        ->and($prediction->fresh()->points_base)->toBe(1)
+        ->and($prediction->fresh()->points_offensive)->toBe(1)
+        ->and($prediction->fresh()->total_points)->toBe(2);
 });
