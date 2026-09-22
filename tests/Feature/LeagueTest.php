@@ -3,6 +3,8 @@
 use App\Models\Season;
 use App\Models\SeasonLeague;
 use App\Models\SeasonTeam;
+use App\Models\Competition;
+use App\Models\LechMatch;
 use App\Models\Team;
 use App\Models\User;
 
@@ -36,6 +38,21 @@ it('exposes the league link to guests on the homepage', function () {
 
     expect($response->viewData('leaguePositions'))->toHaveCount(10);
     expect($response->viewData('leagueMatches'))->toHaveCount(45);
+});
+
+it('shows the assigned typer match in the league round schedule', function () {
+    $competition = Competition::create(['name' => 'Liga Testowa', 'slug' => 'liga-testowa']);
+    LechMatch::create([
+        'competition_id' => $competition->id,
+        'round_number' => 1,
+        'opponent' => 'Testowy Rywal',
+        'lech_home' => true,
+        'scheduled_at' => now()->addDay(),
+    ]);
+
+    $this->get(route('league.index'))
+        ->assertOk()
+        ->assertSee('Lech Poznań - Testowy Rywal');
 });
 
 it('does not re-add a fan team to the backyard league once it is promoted elsewhere', function () {
