@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdminBonusController;
 use App\Http\Controllers\AdminLeagueController;
 use App\Http\Controllers\AdminLeagueManagementController;
+use App\Http\Controllers\AdminTyperController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\PaymentController;
@@ -22,7 +24,9 @@ Route::view('/admin', 'admin')->name('admin.dashboard')->middleware(['auth', 'ad
 Route::get('/liga', [LeagueController::class, 'index'])->name('league.index');
 Route::get('/liga/{leagueSlug}', [LeagueController::class, 'show'])->name('league.show');
 Route::get('/liga/{leagueSlug}/mecz/{match}', [LeagueController::class, 'match'])->name('league.match');
+Route::view('/faq', 'faq')->name('faq');
 Route::middleware('auth')->group(function (): void {
+    Route::view('/typer', 'typer')->name('typer');
     Route::post('/liga/mecze/{match}/typ', [LeagueController::class, 'submitSelection'])->name('league.selection.store');
     Route::post('/admin/liga/mecze/{match}/rozlicz', [AdminLeagueController::class, 'completeMatch'])->name('admin.league.matches.complete')->middleware('admin');
     Route::get('/haslo/zmien', [AuthController::class, 'showChangePassword'])->name('password.change');
@@ -44,6 +48,14 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/admin/ligi/terminarz/generuj', [AdminLeagueManagementController::class, 'generateSchedule'])->name('admin.leagues.schedule.generate')->middleware('admin');
     Route::put('/admin/ligi/kolejki/{round}', [AdminLeagueManagementController::class, 'updateRound'])->name('admin.leagues.rounds.update')->middleware('admin');
     Route::get('/admin/terminarz', [AdminLeagueManagementController::class, 'schedule'])->name('admin.schedule.index')->middleware('admin');
+    Route::get('/admin/typer', [AdminTyperController::class, 'index'])->name('admin.typer.index')->middleware('admin');
+    Route::get('/admin/typer/bonusy', [AdminBonusController::class, 'index'])->name('admin.bonuses.index')->middleware('admin');
+    Route::post('/admin/typer/bonusy/pytania', [AdminBonusController::class, 'storeQuestion'])->name('admin.bonuses.questions.store')->middleware('admin');
+    Route::post('/admin/typer/bonusy/{match}/przypisz', [AdminBonusController::class, 'assign'])->name('admin.bonuses.assign')->middleware('admin');
+    Route::post('/admin/typer/bonusy/{match}/losuj', [AdminBonusController::class, 'drawMissing'])->name('admin.bonuses.draw')->middleware('admin');
+    Route::post('/admin/typer/mecze', [AdminTyperController::class, 'storeMatch'])->name('admin.typer.matches.store')->middleware('admin');
+    Route::patch('/admin/typer/mecze/{match}/wynik', [AdminTyperController::class, 'updateResult'])->name('admin.typer.matches.result.update')->middleware('admin');
+    Route::get('/admin/typer/mecze/{match}/typy', [AdminTyperController::class, 'predictions'])->name('admin.typer.matches.predictions')->middleware('admin');
     Route::post('/admin/terminarz/mecze', [AdminLeagueManagementController::class, 'storeRealMatch'])->name('admin.schedule.matches.store')->middleware('admin');
     Route::patch('/admin/terminarz/mecze/{realMatch}/kolejka', [AdminLeagueManagementController::class, 'assignRealMatch'])->name('admin.schedule.matches.round.update')->middleware('admin');
     Route::put('/admin/terminarz/kolejki/{round}', [AdminLeagueManagementController::class, 'updateSeasonRound'])->name('admin.schedule.rounds.update')->middleware('admin');
