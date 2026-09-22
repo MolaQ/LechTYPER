@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\League;
 use App\Models\LeagueRound;
+use App\Models\LechMatch;
 use App\Models\MatchGame;
 use App\Models\MatchSelection;
 use App\Models\MatchSelectionAnswer;
@@ -14,7 +15,9 @@ use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\RoundBonusQuestionService;
+use App\Services\SeasonTeamCleanupService;
 use App\Services\SwissLeagueService;
+use App\Services\SyncRealMatchToLechTyperService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +31,13 @@ class LeagueController extends Controller
         $league = League::query()->where('slug', 'ekstraklasa')->firstOrFail();
         $seasonLeague = $season->seasonLeagues()->where('league_id', $league->id)->firstOrFail();
         $this->ensureSeasonLeagueMatches($seasonLeague);
+        $season->realMatches()->get()->each(fn ($realMatch) => app(SyncRealMatchToLechTyperService::class)->sync($realMatch));
+        $nextTyperMatch = LechMatch::query()
+            ->where('status', 'scheduled')
+            ->where('scheduled_at', '>', now())
+            ->with('competition')
+            ->orderBy('scheduled_at')
+            ->first();
         $leagueTeam = $request->user() ? $this->teamFor($request) : null;
         $standings = SeasonTeam::query()
             ->where('season_league_id', $seasonLeague->id)
@@ -42,7 +52,7 @@ class LeagueController extends Controller
             ->orderBy('scheduled_at')
             ->get();
 
-        return view('welcome', compact('leagueTeam', 'season', 'league', 'standings', 'leaguePositions', 'leagueMatches'));
+        return view('welcome', compact('leagueTeam', 'season', 'league', 'standings', 'leaguePositions', 'leagueMatches', 'nextTyperMatch'));
     }
 
     public function index(Request $request): View
@@ -167,6 +177,7 @@ class LeagueController extends Controller
     private function ensureSeasonLeagueMatches(SeasonLeague $seasonLeague): void
     {
         $seasonLeague->loadMissing('league');
+        app(SeasonTeamCleanupService::class)->reconcile($seasonLeague);
 
         if ($seasonLeague->league->level === 11) {
             app(SwissLeagueService::class)->generateNextRound($seasonLeague);
