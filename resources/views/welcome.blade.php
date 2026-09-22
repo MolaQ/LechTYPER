@@ -15,6 +15,7 @@
         <div class="sidebar-label px-2 mb-2">Nawigacja</div>
         <nav class="nav flex-column gap-1">
             <a class="nav-link active d-flex align-items-center gap-3 px-3 py-2" href="{{ route('news') }}"><span class="nav-icon">⌂</span>Aktualności</a>
+            @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('typer') }}"><span class="nav-icon">✎</span>Typer Lecha</a>@endauth
             <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">⚽</span>Liga kiboli</a>
             @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('profile') }}"><span class="nav-icon">◎</span>Mój profil</a>@endauth
         </nav>
@@ -49,15 +50,15 @@
             <section class="hero-match position-relative p-4 p-lg-5 mb-4">
                 <div class="hero-match-bg"></div>
                 <div class="hero-match-content">
-                    <div class="small text-white-50 mb-3"><span class="live-dot me-2"></span>Najbliższe spotkanie <span class="mx-2">•</span> PKO Ekstraklasa</div>
+                        <div class="small text-white-50 mb-3"><span class="live-dot me-2"></span>Najbliższe typowanie <span class="mx-2">•</span>{{ $nextTyperMatch?->competition?->name ?? 'Mecz Lecha' }}</div>
                     <div class="hero-match-row d-flex align-items-center justify-content-center my-4">
-                        <div class="club club-home d-flex align-items-center gap-2"><div class="club-crest crest-blue">L</div><span>Lech Poznań</span></div>
-                        <div class="match-time text-center"><strong class="d-block">20:30</strong><span class="small text-white-50">Sobota, 19 września</span></div>
-                        <div class="club d-flex align-items-center gap-2"><div class="club-crest crest-red">W</div><span>Wisła Kraków</span></div>
+                        <div class="club club-home d-flex align-items-center gap-2"><div class="club-crest crest-blue">L</div><span>{{ $nextTyperMatch?->lech_home ? 'Lech Poznań' : ($nextTyperMatch?->opponent ?? 'Lech Poznań') }}</span></div>
+                        <div class="match-time text-center"><strong class="d-block">{{ $nextTyperMatch?->scheduled_at?->format('H:i') ?? '--:--' }}</strong><span class="small text-white-50">{{ $nextTyperMatch?->scheduled_at?->translatedFormat('l, d F') ?? 'Termin nieustalony' }}</span></div>
+                        <div class="club d-flex align-items-center gap-2"><div class="club-crest crest-red">{{ $nextTyperMatch?->opponent ? substr($nextTyperMatch->opponent, 0, 1) : '?' }}</div><span>{{ $nextTyperMatch?->lech_home ? ($nextTyperMatch?->opponent ?? 'Rywal') : 'Lech Poznań' }}</span></div>
                     </div>
                     <div class="d-flex justify-content-between border-top border-light border-opacity-10 pt-3 small text-white-50">
-                        <span>Enea Stadion, Poznań</span>
-                        <a class="text-white fw-semibold" href="{{ route('league.index') }}">Szczegóły spotkania →</a>
+                        <span>Typuj wynik i bonusy</span>
+                        @auth<a class="text-white fw-semibold" href="{{ route('typer') }}">Otwórz Typera →</a>@else<a class="text-white fw-semibold" href="{{ route('login') }}">Zaloguj się →</a>@endauth
                     </div>
                 </div>
             </section>
