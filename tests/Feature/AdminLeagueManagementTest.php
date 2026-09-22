@@ -216,6 +216,37 @@ it('allows an admin to replace a bot position with a real team', function () {
     expect(SeasonTeam::query()->where('season_league_id', $seasonLeague->id)->where('team_id', $team->id)->exists())->toBeTrue();
 });
 
+it('removes the bot season-team row so the league keeps exactly ten entries after a swap', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
+    $user = User::factory()->create(['name' => 'Kibic Zastępujący Bota Drugi']);
+    $position = $seasonLeague->positions()->firstOrCreate([
+        'season_league_id' => $seasonLeague->id,
+        'position' => 1,
+    ]);
+    $botUser = User::query()->firstOrCreate(
+        ['email' => sprintf('bot.%d.%d@local.test', $seasonLeague->id, 1)],
+        [
+            'name' => 'Chłopaki z orlika',
+            'password' => bcrypt('bot-'.$seasonLeague->id.'-1'),
+            'role' => 'user',
+        ],
+    );
+    $botTeam = Team::query()->firstOrCreate(['user_id' => $botUser->id], ['name' => 'Chłopaki z orlika']);
+    $position->update(['team_id' => $botTeam->id]);
+    SeasonTeam::create(['season_league_id' => $seasonLeague->id, 'team_id' => $botTeam->id, 'position' => 1]);
+    $countBeforeSwap = SeasonTeam::query()->where('season_league_id', $seasonLeague->id)->count();
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $user->id,
+        'season_league_id' => $seasonLeague->id,
+        'position' => 1,
+    ])->assertRedirect();
+
+    expect(SeasonTeam::query()->where('season_league_id', $seasonLeague->id)->count())->toBe($countBeforeSwap);
+    expect(SeasonTeam::query()->where('season_league_id', $seasonLeague->id)->where('team_id', $botTeam->id)->exists())->toBeFalse();
+});
+
 it('updates every scheduled match when an admin replaces a bot position', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
