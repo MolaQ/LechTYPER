@@ -7,6 +7,7 @@ use App\Models\LeagueRound;
 use App\Models\MatchGame;
 use App\Models\MatchSelection;
 use App\Models\MatchSelectionAnswer;
+use App\Models\SeasonLeague;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use Illuminate\Support\Collection;
@@ -32,12 +33,10 @@ class LeagueMatchService
             $defensiveQuestions = $round->bonusQuestions->where('type', 'defensive')->values();
 
             foreach ($round->matches as $match) {
-                if ($match->status !== 'scheduled') {
-                    continue;
-                }
-
                 $this->completeMatch($match, $seasonLeagueId, $realScoreHome, $realScoreAway, $offensiveQuestions, $defensiveQuestions);
             }
+
+            $this->rebuildStandings($round->seasonLeague);
 
             if ($round->seasonLeague->league->level === 11) {
                 app(SwissLeagueService::class)->generateNextRound($round->seasonLeague);
@@ -131,6 +130,24 @@ class LeagueMatchService
 
         $this->updateTeamStanding($seasonLeagueId, $match->home_team_id, $homePoints, $homeScore, $awayScore, $home);
         $this->updateTeamStanding($seasonLeagueId, $match->away_team_id, $awayPoints, $awayScore, $homeScore, -$home);
+    }
+
+    private function rebuildStandings(SeasonLeague $seasonLeague): void
+    {
+        $seasonLeague->teams()->update([
+            'played' => 0,
+            'wins' => 0,
+            'draws' => 0,
+            'losses' => 0,
+            'points' => 0,
+            'score_for' => 0,
+            'score_against' => 0,
+        ]);
+
+        $seasonLeague->matches()
+            ->where('status', 'completed')
+            ->get()
+            ->each(fn (MatchGame $match) => $this->updateStandings($match, (int) $seasonLeague->id, (int) $match->home_score, (int) $match->away_score));
     }
 
     private function updateTeamStanding(int $seasonLeagueId, int $teamId, int $points, int $scoreFor, int $scoreAgainst, int $result): void
