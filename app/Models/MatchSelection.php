@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['match_id', 'team_id', 'submitted_at'])]
+#[Fillable(['match_id', 'team_id', 'submitted_at', 'home_score', 'away_score', 'points_base', 'points_offensive', 'points_defensive_applied', 'total_points'])]
 class MatchSelection extends Model
 {
     protected function casts(): array
@@ -28,5 +28,10 @@ class MatchSelection extends Model
     public function players(): HasMany
     {
         return $this->hasMany(MatchSelectionPlayer::class);
+    }
+
+    public function answers(): HasMany
+    {
+        return $this->hasMany(MatchSelectionAnswer::class);
     }
 }
