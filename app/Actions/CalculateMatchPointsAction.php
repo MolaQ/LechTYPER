@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
-use App\Models\BonusQuestion;
 use App\Models\H2hFixture;
 use App\Models\Prediction;
 use App\Models\UserAnswer;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -116,7 +116,7 @@ class CalculateMatchPointsAction
 
     private function calculateBonusPoints(Collection $questions, Collection $answers): int
     {
-        $answered = $questions->mapWithKeys(function (BonusQuestion $question) use ($answers): array {
+        $answered = $questions->mapWithKeys(function (Model $question) use ($answers): array {
             return [$question->id => $answers->get($question->id)];
         })->filter(fn (?bool $answer): bool => $answer !== null);
 
