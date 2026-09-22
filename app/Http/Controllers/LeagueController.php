@@ -6,6 +6,7 @@ use App\Models\League;
 use App\Models\LeagueRound;
 use App\Models\MatchGame;
 use App\Models\MatchSelection;
+use App\Models\MatchSelectionAnswer;
 use App\Models\Season;
 use App\Models\SeasonLeague;
 use App\Models\SeasonRound;
@@ -83,11 +84,11 @@ class LeagueController extends Controller
             ->orderBy('round_number')
             ->get();
 
-        $players = $team ? $team->players()->with('player')->get() : collect();
         $nextMatch = $matches->first(fn ($match) => $match->status === 'scheduled' && $match->scheduled_at->isFuture() && (! $team || $match->home_team_id === $team->id || $match->away_team_id === $team->id));
-        $selection = $team && $nextMatch ? $nextMatch->selections()->where('team_id', $team->id)->with('players')->first() : null;
+        $nextMatch?->loadMissing('leagueRound.bonusQuestions');
+        $selection = $team && $nextMatch ? $nextMatch->selections()->where('team_id', $team->id)->with('answers')->first() : null;
 
-        return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'seasonRounds', 'players', 'nextMatch', 'selection'));
+        return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'seasonRounds', 'nextMatch', 'selection'));
     }
 
     public function match(Request $request, string $leagueSlug, MatchGame $match): View
@@ -97,10 +98,10 @@ class LeagueController extends Controller
         $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
         $league = $match->seasonLeague->league;
         $team = $request->user() ? $this->teamFor($request) : null;
-        $players = $team ? $team->players()->with('player')->get() : collect();
-        $selection = $team ? $match->selections()->where('team_id', $team->id)->with('players')->first() : null;
+        $match->loadMissing('leagueRound.bonusQuestions');
+        $selection = $team ? $match->selections()->where('team_id', $team->id)->with('answers')->first() : null;
 
-        return view('league.match', compact('season', 'league', 'match', 'team', 'players', 'selection'));
+        return view('league.match', compact('season', 'league', 'match', 'team', 'selection'));
     }
 
     public function submitSelection(Request $request, MatchGame $match): RedirectResponse
@@ -109,22 +110,31 @@ class LeagueController extends Controller
         abort_unless($match->home_team_id === $team->id || $match->away_team_id === $team->id, 403);
         abort_unless($match->status === 'scheduled' && $match->scheduled_at->isFuture(), 422, 'Typowanie zostało zamknięte.');
 
-        $data = $request->validate(['players' => ['required', 'array', 'size:5'], 'players.*' => ['integer', 'distinct', 'exists:players,id']]);
-        $availablePlayerIds = $team->players()->where(function ($query): void {
-            $query->whereNull('injury_until')->orWhere('injury_until', '<=', now());
-        })->pluck('player_id');
-        abort_unless(collect($data['players'])->every(fn (int $playerId): bool => $availablePlayerIds->contains($playerId)), 422, 'Wybrano zawodnika niedostępnego.');
+        $match->loadMissing('leagueRound.bonusQuestions');
+        $questionIds = $match->leagueRound?->bonusQuestions->pluck('id') ?? collect();
 
-        app(DatabaseManager::class)->transaction(function () use ($data, $match, $team): void {
+        $data = $request->validate([
+            'home_score' => ['required', 'integer', 'min:0', 'max:20'],
+            'away_score' => ['required', 'integer', 'min:0', 'max:20'],
+            'answers' => ['array'],
+            'answers.*' => ['nullable', 'boolean'],
+        ]);
+
+        app(DatabaseManager::class)->transaction(function () use ($data, $match, $team, $questionIds): void {
             $selection = MatchSelection::updateOrCreate(
                 ['match_id' => $match->id, 'team_id' => $team->id],
-                ['submitted_at' => now()],
+                ['home_score' => $data['home_score'], 'away_score' => $data['away_score'], 'submitted_at' => now()],
             );
-            $selection->players()->delete();
-            $selection->players()->createMany(array_map(fn (int $playerId): array => ['player_id' => $playerId], $data['players']));
+
+            foreach ($questionIds as $questionId) {
+                MatchSelectionAnswer::updateOrCreate(
+                    ['match_selection_id' => $selection->id, 'league_round_bonus_question_id' => $questionId],
+                    ['answer' => $data['answers'][$questionId] ?? null],
+                );
+            }
         });
 
-        return back()->with('status', 'Skład pięciu zawodników został zapisany.');
+        return back()->with('status', 'Typ na mecz został zapisany.');
     }
 
     private function teamFor(Request $request): Team
