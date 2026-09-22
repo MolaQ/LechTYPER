@@ -34,6 +34,7 @@ class SwissLeagueService
                 'round_number' => $nextRoundNumber,
                 'scheduled_at' => now()->addDays($nextRoundNumber - 1),
             ]);
+            app(RoundBonusQuestionService::class)->assignRandomQuestions($round);
 
             foreach ($this->pairTeams($seasonLeague, $teams) as [$home, $away]) {
                 MatchGame::create([
