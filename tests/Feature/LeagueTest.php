@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Season;
+use App\Models\SeasonLeague;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
@@ -35,4 +36,29 @@ it('exposes the league link to guests on the homepage', function () {
 
     expect($response->viewData('leaguePositions'))->toHaveCount(10);
     expect($response->viewData('leagueMatches'))->toHaveCount(45);
+});
+
+it('does not re-add a fan team to the backyard league once it is promoted elsewhere', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $fan = User::factory()->create();
+
+    // Auto-assigns the fan to the backyard league on their very first visit.
+    $this->actingAs($fan)->get(route('home'))->assertOk();
+    $team = Team::where('user_id', $fan->id)->firstOrFail();
+    $season = Season::query()->where('status', 'active')->firstOrFail();
+    $regularLeague = SeasonLeague::query()
+        ->where('season_id', $season->id)
+        ->whereHas('league', fn ($query) => $query->where('level', '<>', 11))
+        ->firstOrFail();
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $fan->id,
+        'season_league_id' => $regularLeague->id,
+        'position' => 1,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    $this->actingAs($fan)->get(route('home'))->assertOk();
+
+    expect(SeasonTeam::where('team_id', $team->id)->count())->toBe(1);
+    expect(SeasonTeam::where('team_id', $team->id)->where('season_league_id', $regularLeague->id)->exists())->toBeTrue();
 });
