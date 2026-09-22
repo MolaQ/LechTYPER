@@ -51,17 +51,6 @@ class MatchPrediction extends Component
                 ->each(fn (RealMatch $realMatch) => app(SyncRealMatchToLechTyperService::class)->sync($realMatch));
         }
 
-        $match = LechMatch::query()
-            ->where('status', 'scheduled')
-            ->where('scheduled_at', '>', now())
-            ->with('bonusQuestions')
-            ->orderBy('scheduled_at')
-            ->first();
-
-        if ($match === null) {
-            return;
-        }
-
         $this->matchId = null;
     }
 
