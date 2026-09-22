@@ -15,6 +15,7 @@
             <nav class="nav flex-column gap-1">
                 <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('news') }}"><span class="nav-icon">⌂</span>Aktualności</a>
                 <a class="nav-link active d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">⚽</span>Liga kiboli</a>
+                @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('typer') }}"><span class="nav-icon">✎</span>Typer Lecha</a>@endauth
                 <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('profile') }}"><span class="nav-icon">◎</span>Mój profil</a>
             </nav>
             <div class="sidebar-spacer"></div>
@@ -64,41 +65,10 @@
                 <div class="content-grid">
                     <section class="main-column">
                         <div class="league-panel table-panel p-4 mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <p class="eyebrow mb-2">Najbliższe typowanie</p>
-                                    <h2 class="font-display h4 mb-0">
-                                        {{ $nextMatch ? $nextMatch->homeTeam->name.' - '.$nextMatch->awayTeam->name : 'Brak zaplanowanego spotkania' }}
-                                    </h2>
-                                </div>
-                                @if($nextMatch)
-                                    <span class="badge text-bg-light">Kolejka {{ $nextMatch->round_number }}</span>
-                                @endif
-                            </div>
-
-                            @if($nextMatch)
-                                <p class="text-muted-custom small mb-3">Typowanie do {{ $nextMatch->scheduled_at->format('d.m.Y, H:i') }}</p>
-                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-                                    <div>
-                                        <strong>{{ $nextMatch->homeTeam->name }}</strong>
-                                        <span class="mx-2 text-muted-custom">vs</span>
-                                        <strong>{{ $nextMatch->awayTeam->name }}</strong>
-                                    </div>
-                                    <a class="btn btn-outline-primary btn-sm" href="{{ route('league.match', [$league->slug, $nextMatch->id]) }}">Zobacz szczegóły</a>
-                                </div>
-
-                                @auth
-                                @include('league.partials.prediction-form', ['match' => $nextMatch, 'selection' => $selection])
-                                @else
-                                    <div class="mini-panel mt-3">
-                                        <strong>Zaloguj się, aby typować mecz.</strong>
-                                        <p class="text-muted-custom small mb-2">Tabela i terminarz są dostępne publicznie.</p>
-                                        <a class="btn btn-primary btn-sm" href="{{ route('login') }}">Zaloguj się</a>
-                                    </div>
-                                @endauth
-                            @else
-                                <p class="text-muted-custom mb-0">Administrator nie utworzył jeszcze meczu dla tej ligi.</p>
-                            @endif
+                            <p class="eyebrow mb-2">Typowanie Lecha</p>
+                            <h2 class="font-display h4 mb-2">Typowanie jest w module LechTYPER</h2>
+                            <p class="text-muted-custom mb-3">Wynik meczu Lecha i pytania bonusowe znajdziesz na osobnej stronie Typera.</p>
+                            <a class="btn btn-primary" href="{{ route('typer') }}">Przejdź do Typera Lecha</a>
                         </div>
 
                         <div class="league-panel p-4 mb-4">
@@ -167,19 +137,12 @@
 
                     <aside class="secondary-column">
                         <div class="league-panel p-4 mb-4">
-                            <p class="eyebrow mb-3">{{ $team ? 'Twój najbliższy typ' : 'Strefa użytkownika' }}</p>
+                            <p class="eyebrow mb-3">Typer Lecha</p>
+                            <p class="text-muted-custom mb-3">Typy meczów Lecha są dostępne w module LechTYPER.</p>
                             @auth
-                                @if($nextMatch && $selection)
-                                    <p class="mb-1"><strong>{{ $selection->home_score }}:{{ $selection->away_score }}</strong></p>
-                                    <p class="text-muted-custom small mb-0">{{ $nextMatch->homeTeam->name }} vs {{ $nextMatch->awayTeam->name }}</p>
-                                @elseif($nextMatch)
-                                    <p class="text-muted-custom mb-0">Nie wytypowałeś jeszcze najbliższego meczu.</p>
-                                @else
-                                    <p class="text-muted-custom mb-0">Brak zaplanowanego meczu do typowania.</p>
-                                @endif
+                                <a class="btn btn-outline-primary btn-sm" href="{{ route('typer') }}">Otwórz Typera</a>
                             @else
-                                <p class="text-muted-custom mb-3">Zaloguj się, aby zobaczyć swój typ i historię typowań.</p>
-                                <a class="btn btn-outline-primary btn-sm" href="{{ route('login') }}">Zaloguj się</a>
+                                <a class="btn btn-outline-primary btn-sm" href="{{ route('login') }}">Zaloguj się do Typera</a>
                             @endauth
                         </div>
 
