@@ -512,7 +512,6 @@ class AdminLeagueManagementController extends Controller
         return view('admin.leagues.schedule', [
             'seasons' => $seasons,
             'season' => $season,
-            'rounds' => $season->seasonRounds()->with('realMatch')->get(),
             'typerMatches' => LechMatch::query()->with('competition')->withCount('predictions')->orderByDesc('scheduled_at')->get(),
         ]);
     }
