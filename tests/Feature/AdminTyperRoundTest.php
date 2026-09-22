@@ -145,3 +145,29 @@ it('allows an admin to set match-specific bonus answers with the result', functi
         ->assertSee('Czy Lech zachował czyste konto?')
         ->assertSee('Fan Z Wynikiem');
 });
+
+it('requires every bonus answer before completing a match', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $competition = Competition::create(['name' => 'Komplet Odpowiedzi', 'slug' => 'komplet-odpowiedzi']);
+    $match = LechMatch::create([
+        'competition_id' => $competition->id,
+        'opponent' => 'Rywal Komplet',
+        'scheduled_at' => now()->addDay(),
+    ]);
+    $question = BonusQuestion::create([
+        'match_id' => $match->id,
+        'type' => 'offensive',
+        'question_text' => 'Czy padł gol?',
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.typer.matches.result.update', $match), [
+            'result_home' => 1,
+            'result_away' => 0,
+            'status' => 'completed',
+            'correct_answers' => [$question->id => ''],
+        ])
+        ->assertSessionHasErrors("correct_answers.{$question->id}");
+
+    expect($match->fresh()->status)->toBe('scheduled');
+});
