@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BonusQuestionPool;
 use App\Models\League;
 use App\Models\LeagueRound;
 use App\Models\MatchGame;
@@ -400,6 +401,64 @@ it('creates empty league rounds and assigns a real Lech match to a round', funct
 
     expect($round->fresh()->real_away_team)->toBe('Widzew Lodz');
     expect($seasonLeague->rounds()->count())->toBe(9);
+});
+
+it('completes a round from a real score and settles fan predictions with bonus questions', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $seasonLeague = SeasonLeague::query()->whereHas('league', fn ($query) => $query->where('level', '<>', 11))->firstOrFail();
+    foreach (range(1, 10) as $number) {
+        BonusQuestionPool::create(['question_text' => "Pytanie testowe {$number}"]);
+    }
+
+    $this->actingAs($admin)->post(route('admin.leagues.schedule.generate'), [
+        'season_league_id' => $seasonLeague->id,
+    ])->assertRedirect();
+
+    $round = LeagueRound::where('season_league_id', $seasonLeague->id)->where('round_number', 1)->firstOrFail();
+    expect($round->bonusQuestions()->count())->toBe(10);
+
+    $match = $round->matches()->firstOrFail();
+    $match->update(['scheduled_at' => now()->addDay()]);
+    $homeUser = User::factory()->create();
+    $awayUser = User::factory()->create();
+    $homePosition = $seasonLeague->positions()->where('team_id', $match->home_team_id)->firstOrFail();
+    $awayPosition = $seasonLeague->positions()->where('team_id', $match->away_team_id)->firstOrFail();
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $homeUser->id,
+        'season_league_id' => $seasonLeague->id,
+        'position' => $homePosition->position,
+    ])->assertRedirect();
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $awayUser->id,
+        'season_league_id' => $seasonLeague->id,
+        'position' => $awayPosition->position,
+    ])->assertRedirect();
+    $match = $match->fresh();
+    $offensiveQuestion = $round->bonusQuestions()->where('type', 'offensive')->firstOrFail();
+
+    $response = $this->actingAs($homeUser)->post(route('league.selection.store', $match), [
+        'home_score' => 2,
+        'away_score' => 1,
+        'answers' => [$offensiveQuestion->id => '1'],
+    ]);
+    $response->assertRedirect();
+
+    $this->actingAs($admin)->put(route('admin.leagues.rounds.update', $round), [
+        'scheduled_at' => $round->scheduled_at->format('Y-m-d H:i'),
+        'real_home_team' => 'Lech Poznan',
+        'real_away_team' => 'Rywal',
+        'competition' => 'Ekstraklasa',
+        'real_score_home' => 2,
+        'real_score_away' => 1,
+        'correct_answers' => [$offensiveQuestion->id => '1'],
+    ])->assertRedirect();
+
+    $selection = $match->selections()->where('team_id', $match->home_team_id)->firstOrFail();
+
+    expect($match->fresh()->status)->toBe('completed');
+    expect($selection->points_base)->toBe(3);
+    expect($selection->points_offensive)->toBe(1);
+    expect($selection->total_points)->toBe(4);
 });
 
 it('creates season rounds automatically and saves the real Lech match in the schedule tab', function () {
