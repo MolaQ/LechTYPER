@@ -110,17 +110,27 @@
                             <h2 class="font-display h4 mb-3">Kolejki i mecze</h2>
                             <div class="d-grid gap-3">
                                 @forelse($seasonRounds as $seasonRound)
-                                    @php $roundMatches = $matches->where('round_number', $seasonRound->round_number); @endphp
+                                    @php
+                                        $roundMatches = $matches->where('round_number', $seasonRound->round_number);
+                                        $typerMatch = $typerMatchesByRound->get($seasonRound->round_number);
+                                        $realMatchLabel = $seasonRound->realMatch
+                                            ? $seasonRound->realMatch->home_team.' - '.$seasonRound->realMatch->away_team
+                                            : ($typerMatch ? ($typerMatch->lech_home ? 'Lech Poznań - '.$typerMatch->opponent : $typerMatch->opponent.' - Lech Poznań') : null);
+                                    @endphp
                                     <div class="border rounded-3 p-3">
-                                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2"><strong>Kolejka {{ $seasonRound->round_number }}</strong><span class="small text-muted-custom">{{ $seasonRound->realMatch ? $seasonRound->realMatch->home_team.' - '.$seasonRound->realMatch->away_team : 'Mecz Lecha nieprzypisany' }}</span></div>
-                                        @if($seasonRound->realMatch)<small class="text-muted-custom d-block mb-2">{{ $seasonRound->realMatch->competition }} · źródło punktacji typów</small>@endif
+                                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2"><strong>Kolejka {{ $seasonRound->round_number }}</strong><span class="small text-muted-custom">{{ $realMatchLabel ?? 'Mecz Lecha nieprzypisany' }}</span></div>
+                                        @if($seasonRound->realMatch || $typerMatch)<small class="text-muted-custom d-block mb-2">{{ $seasonRound->realMatch?->competition ?? $typerMatch?->competition?->name }} · źródło punktacji typów</small>@endif
                                         <div class="d-grid gap-2">
                                             @forelse($roundMatches as $match)
                                                 <a href="{{ route('league.match', [$league->slug, $match->id]) }}" class="match-row d-flex justify-content-between align-items-center p-2 rounded-3 border text-decoration-none">
                                                     <strong>{{ $match->homeTeam->name }} vs {{ $match->awayTeam->name }}</strong>
                                                     <div class="text-end">
                                                         <small class="d-block text-muted-custom">{{ $match->scheduled_at->format('d.m.Y H:i') }}</small>
-                                                        <span class="badge {{ $match->status === 'scheduled' ? 'text-bg-light' : 'text-bg-success' }} mt-1">{{ $match->status === 'scheduled' ? 'Typowanie' : 'Sfinalizowano' }}</span>
+                                                        @if($match->status === 'scheduled')
+                                                            <span class="badge text-bg-light mt-1">Typowanie</span>
+                                                        @else
+                                                            <span class="badge text-bg-success mt-1">Sfinalizowano · {{ $match->home_score }}:{{ $match->away_score }}</span>
+                                                        @endif
                                                     </div>
                                                 </a>
                                             @empty
