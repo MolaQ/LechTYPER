@@ -25,7 +25,7 @@ use Illuminate\View\View;
 
 class AdminLeagueManagementController extends Controller
 {
-    private const COMPETITIONS = [
+    public const COMPETITIONS = [
         'Ekstraklasa',
         'Puchar Polski',
         'Mecz towarzyski',
