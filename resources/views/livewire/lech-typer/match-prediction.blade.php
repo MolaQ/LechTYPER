@@ -109,6 +109,13 @@
                             @endif
                         @else
                             <div class="alert alert-secondary mb-0">Typowanie zostało zamknięte, ponieważ mecz już się rozpoczął.</div>
+                            @if($opponentPrediction !== null && $opponentPrediction['prediction'] !== null)
+                                <div class="bg-white border rounded-3 p-4 mt-4">
+                                    <p class="eyebrow mb-2">Starcie H2H</p>
+                                    <h3 class="font-display h5 mb-3">Typ rywala: {{ $opponentPrediction['name'] }}</h3>
+                                    <p class="mb-0"><strong>{{ $opponentPrediction['prediction']->home_score }}:{{ $opponentPrediction['prediction']->away_score }}</strong></p>
+                                </div>
+                            @endif
                         @endif
                     </div>
                 </div>
