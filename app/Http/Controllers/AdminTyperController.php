@@ -9,8 +9,11 @@ use App\Models\BonusQuestionPool;
 use App\Models\Competition;
 use App\Models\LeagueRound;
 use App\Models\LechMatch;
+use App\Models\MatchSelection;
+use App\Models\MatchSelectionAnswer;
 use App\Models\Prediction;
 use App\Models\Season;
+use App\Models\Team;
 use App\Services\LeagueMatchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -124,8 +127,46 @@ class AdminTyperController extends Controller
                     $correctAnswers[$question->id] = $sourceQuestion?->correct_answer;
                 }
 
+                $this->syncPredictionsToLeagueRound($match, $round);
                 app(LeagueMatchService::class)->completeRound($round, (int) $homeScore, (int) $awayScore, $correctAnswers);
             });
+    }
+
+    private function syncPredictionsToLeagueRound(LechMatch $sourceMatch, LeagueRound $round): void
+    {
+        $round->loadMissing('matches');
+
+        foreach ($round->matches as $leagueMatch) {
+            $teamIds = [$leagueMatch->home_team_id, $leagueMatch->away_team_id];
+            $predictions = $sourceMatch->predictions()->with('user')->get();
+
+            foreach ($predictions as $prediction) {
+                $teamId = Team::query()->where('user_id', $prediction->user_id)->value('id');
+                if ($teamId === null || ! in_array($teamId, $teamIds, true)) {
+                    continue;
+                }
+
+                $selection = MatchSelection::updateOrCreate(
+                    ['match_id' => $leagueMatch->id, 'team_id' => $teamId],
+                    [
+                        'home_score' => $prediction->home_score,
+                        'away_score' => $prediction->away_score,
+                        'submitted_at' => $prediction->updated_at ?? now(),
+                    ],
+                );
+
+                foreach ($round->bonusQuestions as $question) {
+                    $sourceQuestion = $sourceMatch->bonusQuestions->firstWhere('question_text', $question->question_text);
+                    $answer = $sourceQuestion === null
+                        ? null
+                        : $sourceQuestion->answers()->where('user_id', $prediction->user_id)->value('answer');
+                    MatchSelectionAnswer::updateOrCreate(
+                        ['match_selection_id' => $selection->id, 'league_round_bonus_question_id' => $question->id],
+                        ['answer' => $answer],
+                    );
+                }
+            }
+        }
     }
 
     public function predictions(LechMatch $match): View
