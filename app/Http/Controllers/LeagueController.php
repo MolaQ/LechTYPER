@@ -12,6 +12,7 @@ use App\Models\SeasonRound;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\RoundBonusQuestionService;
 use App\Services\SwissLeagueService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
@@ -204,6 +205,7 @@ class LeagueController extends Controller
                 'round_number' => $round + 1,
                 'scheduled_at' => now()->addDays($round),
             ]);
+            app(RoundBonusQuestionService::class)->assignRandomQuestions($leagueRound);
 
             $half = intdiv(count($roundTeams), 2);
             for ($index = 0; $index < $half; $index++) {
