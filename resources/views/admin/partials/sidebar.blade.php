@@ -6,6 +6,8 @@
         <a class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }} px-3 py-2" href="{{ route('admin.users.index') }}">♧ <span class="ms-2">Użytkownicy</span></a>
         <a class="nav-link {{ request()->routeIs('admin.leagues.*') ? 'active' : '' }} px-3 py-2" href="{{ route('admin.leagues.index') }}">⚽ <span class="ms-2">Ligi</span></a>
         <a class="nav-link {{ request()->routeIs('admin.schedule.*') ? 'active' : '' }} px-3 py-2" href="{{ route('admin.schedule.index') }}">◷ <span class="ms-2">Terminarz</span></a>
+        <a class="nav-link {{ request()->routeIs('admin.typer.*') ? 'active' : '' }} px-3 py-2" href="{{ route('admin.typer.index') }}">✎ <span class="ms-2">Typer Lecha</span></a>
+        <a class="nav-link {{ request()->routeIs('admin.bonuses.*') ? 'active' : '' }} px-3 py-2" href="{{ route('admin.bonuses.index') }}">✦ <span class="ms-2">Bonusy Typera</span></a>
         <a class="nav-link px-3 py-2" href="#mecze">◷ <span class="ms-2">Mecze i typy</span></a>
         <a class="nav-link px-3 py-2" href="#wpisy">▤ <span class="ms-2">Moderacja wpisów</span></a>
     </nav>
