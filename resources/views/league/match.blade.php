@@ -15,6 +15,7 @@
             <nav class="nav flex-column gap-1">
                 <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('news') }}"><span class="nav-icon">⌂</span>Aktualności</a>
                 <a class="nav-link active d-flex align-items-center gap-3 px-3 py-2" href="{{ route('league.index') }}"><span class="nav-icon">⚽</span>Liga kiboli</a>
+                @auth<a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('typer') }}"><span class="nav-icon">✎</span>Typer Lecha</a>@endauth
                 <a class="nav-link d-flex align-items-center gap-3 px-3 py-2" href="{{ route('profile') }}"><span class="nav-icon">◎</span>Mój profil</a>
             </nav>
             <div class="sidebar-spacer"></div>
@@ -35,7 +36,13 @@
             <div class="content-wrap container-fluid px-3 px-md-4 px-xl-5 py-4 py-lg-5">
                 <div class="league-panel p-4 p-lg-5 mb-4">
                     <p class="eyebrow mb-2">{{ $match->scheduled_at->format('d.m.Y, H:i') }}</p>
+                    <p class="text-muted-custom small mb-1">Twój rywal w tej kolejce</p>
                     <h1 class="font-display h2 mb-3">{{ $match->homeTeam->name }} vs {{ $match->awayTeam->name }}</h1>
+                    @if($match->leagueRound?->real_home_team)
+                        <p class="mb-3">Typujesz wynik meczu: <strong>{{ $match->leagueRound->real_home_team }} - {{ $match->leagueRound->real_away_team }}</strong></p>
+                    @else
+                        <p class="text-muted-custom mb-3">Administrator nie przypisał jeszcze meczu Lecha do tej kolejki.</p>
+                    @endif
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                         <div>
                             <p class="mb-1 text-muted-custom"><strong>Kolejka:</strong> {{ $match->round_number }}</p>
