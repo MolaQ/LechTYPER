@@ -45,6 +45,27 @@ class AdminTyperController extends Controller
         return back()->with('status', 'Mecz został dodany. Pytania wybierzesz w formularzu meczu.');
     }
 
+    public function updateMatch(Request $request, LechMatch $match): RedirectResponse
+    {
+        $data = $request->validate([
+            'competition_id' => ['required', 'integer', 'exists:competitions,id'],
+            'round_number' => ['nullable', 'integer', 'min:1', 'max:99'],
+            'opponent' => ['required', 'string', 'max:120'],
+            'lech_home' => ['required', 'boolean'],
+            'scheduled_at' => ['required', 'date'],
+        ]);
+
+        $match->update([
+            'competition_id' => $data['competition_id'],
+            'round_number' => $data['round_number'] ?? null,
+            'opponent' => $data['opponent'],
+            'lech_home' => (bool) $data['lech_home'],
+            'scheduled_at' => $data['scheduled_at'],
+        ]);
+
+        return back()->with('status', 'Mecz został zaktualizowany.');
+    }
+
     public function updateResult(Request $request, LechMatch $match): RedirectResponse
     {
         $data = $request->validate([
