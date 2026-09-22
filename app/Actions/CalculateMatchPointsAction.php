@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Models\H2hFixture;
+use App\Models\LechMatch;
 use App\Models\Prediction;
 use App\Models\UserAnswer;
 use Illuminate\Database\Eloquent\Model;
@@ -57,6 +58,35 @@ class CalculateMatchPointsAction
             $match->bonusQuestions->where('type', 'defensive'),
             $answers,
         );
+    }
+
+    public function settleMatch(LechMatch $match): void
+    {
+        DB::transaction(function () use ($match): void {
+            $match->loadMissing('bonusQuestions');
+
+            Prediction::query()
+                ->where('match_id', $match->id)
+                ->get()
+                ->each(function (Prediction $prediction) use ($match): void {
+                    $answers = UserAnswer::query()
+                        ->where('user_id', $prediction->user_id)
+                        ->whereIn('bonus_question_id', $match->bonusQuestions->pluck('id'))
+                        ->pluck('answer', 'bonus_question_id')
+                        ->map(fn ($answer): ?bool => $answer === null ? null : (bool) $answer);
+                    $points = $this->calculatePrediction($prediction, $answers);
+
+                    $prediction->update([
+                        'points_base' => $points['base'],
+                        'points_offensive' => $points['offensive'],
+                        'total_points' => $points['total'],
+                    ]);
+                });
+        });
+
+        foreach ($match->h2hFixtures as $fixture) {
+            $this->settleFixture($fixture);
+        }
     }
 
     public function settleFixture(H2hFixture $fixture): void
