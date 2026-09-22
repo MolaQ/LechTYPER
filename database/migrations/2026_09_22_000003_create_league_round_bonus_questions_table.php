@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('question_text');
             $table->boolean('correct_answer')->nullable();
             $table->timestamps();
-            $table->unique(['league_round_id', 'pool_question_id']);
+            $table->unique(['league_round_id', 'pool_question_id'], 'lrbq_round_pool_unique');
         });
     }
 
