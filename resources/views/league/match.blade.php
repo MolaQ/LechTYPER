@@ -50,51 +50,18 @@
                         @if(auth()->check() && $match->status === 'scheduled' && $match->scheduled_at->isFuture())
                             <div class="league-panel p-4 mb-4">
                                 <p class="eyebrow mb-2">Typowanie</p>
-                                <h2 class="font-display h4 mb-3">Wybierz skład na ten mecz</h2>
-                                <form method="POST" action="{{ route('league.selection.store', $match) }}">
-                                    @csrf
-                                    <div class="row g-2">
-                                        @foreach($players as $teamPlayer)
-                                            <div class="col-sm-6 col-xl-4">
-                                                <label class="player-option d-flex align-items-center gap-2 p-2">
-                                                    <input type="checkbox" name="players[]" value="{{ $teamPlayer->player_id }}" @checked($selection?->players->contains('player_id', $teamPlayer->player_id)) @disabled($teamPlayer->isInjured())>
-                                                    <span>{{ $teamPlayer->player->name }}</span>
-                                                    @if($teamPlayer->isInjured())
-                                                        <span class="injury-mark" title="Kontuzja do {{ $teamPlayer->injury_until->format('d.m.Y H:i') }}">✕</span>
-                                                    @endif
-                                                </label>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                    <button class="btn btn-primary mt-3" type="submit">Zapisz 5 zawodników</button>
-                                </form>
+                                <h2 class="font-display h4 mb-3">Typuj wynik meczu</h2>
+                                @include('league.partials.prediction-form', ['match' => $match, 'selection' => $selection])
                             </div>
                         @elseif(auth()->check())
                             <div class="league-panel p-4 mb-4">
-                                <p class="eyebrow mb-2">Składy</p>
-                                <h2 class="font-display h4 mb-3">Tymczasowo pokazujemy składy rywali po zamknięciu typowania</h2>
-                                <div class="row g-4">
-                                    <div class="col-md-6">
-                                        <div class="border rounded-3 p-3 h-100">
-                                            <h3 class="h5 mb-3">{{ $match->homeTeam->name }}</h3>
-                                            <ul class="list-unstyled mb-0">
-                                                <li class="py-2 border-bottom">Lewy obrońca</li>
-                                                <li class="py-2 border-bottom">Środkowy pomocnik</li>
-                                                <li class="py-2 border-bottom">Napastnik</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="border rounded-3 p-3 h-100">
-                                            <h3 class="h5 mb-3">{{ $match->awayTeam->name }}</h3>
-                                            <ul class="list-unstyled mb-0">
-                                                <li class="py-2 border-bottom">Prawy obrońca</li>
-                                                <li class="py-2 border-bottom">Ofensywny pomocnik</li>
-                                                <li class="py-2 border-bottom">Napastnik</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
+                                <p class="eyebrow mb-2">Typy</p>
+                                <h2 class="font-display h4 mb-3">Twój zapisany typ</h2>
+                                @if($selection)
+                                    <p class="mb-0"><strong>{{ $selection->home_score }}:{{ $selection->away_score }}</strong></p>
+                                @else
+                                    <p class="text-muted-custom mb-0">Nie wytypowałeś tego meczu.</p>
+                                @endif
                             </div>
                         @else
                             <div class="league-panel p-4 mb-4">
