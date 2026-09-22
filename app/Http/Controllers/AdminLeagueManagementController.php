@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\League;
 use App\Models\LeaguePosition;
 use App\Models\LeagueRound;
+use App\Models\LechMatch;
 use App\Models\MatchGame;
 use App\Models\RealMatch;
 use App\Models\Season;
@@ -171,19 +172,19 @@ class AdminLeagueManagementController extends Controller
             ->whereHas('seasonLeague', fn ($query) => $query->where('season_id', $seasonLeague->season_id))
             ->exists();
 
-        if ($alreadyInAnotherLeague && in_array($user->role, ['admin', 'superadmin'], true)) {
-            $adminBackyardAssignment = SeasonTeam::query()
+        if ($alreadyInAnotherLeague) {
+            $backyardAssignment = SeasonTeam::query()
                 ->where('team_id', $team->id)
                 ->where('season_league_id', '<>', $seasonLeague->id)
                 ->whereHas('seasonLeague.league', fn ($query) => $query->where('level', 11))
                 ->first();
 
-            if ($adminBackyardAssignment) {
+            if ($backyardAssignment) {
                 LeaguePosition::query()
-                    ->where('season_league_id', $adminBackyardAssignment->season_league_id)
+                    ->where('season_league_id', $backyardAssignment->season_league_id)
                     ->where('team_id', $team->id)
                     ->update(['team_id' => null]);
-                $adminBackyardAssignment->delete();
+                $backyardAssignment->delete();
                 $alreadyInAnotherLeague = false;
             }
         }
@@ -492,6 +493,7 @@ class AdminLeagueManagementController extends Controller
             'season' => $season,
             'rounds' => $season->seasonRounds()->with('realMatch')->get(),
             'realMatches' => $season->realMatches()->with('seasonRound')->get(),
+            'typerMatches' => LechMatch::query()->with('competition')->withCount('predictions')->orderByDesc('scheduled_at')->get(),
         ]);
     }
 
