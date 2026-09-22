@@ -147,9 +147,19 @@ class LeagueController extends Controller
         }
 
         $season = Season::query()->where('status', 'active')->firstOrFail();
+        // A team already assigned to any league this season must not be silently re-added to the backyard league.
+        $alreadyAssigned = SeasonTeam::query()
+            ->where('team_id', $team->id)
+            ->whereHas('seasonLeague', fn ($query) => $query->where('season_id', $season->id))
+            ->exists();
+
+        if ($alreadyAssigned) {
+            return $team;
+        }
+
         $podworkowa = League::query()->where('level', 11)->firstOrFail();
         $seasonLeague = $season->seasonLeagues()->where('league_id', $podworkowa->id)->firstOrFail();
-        SeasonTeam::firstOrCreate(['season_league_id' => $seasonLeague->id, 'team_id' => $team->id]);
+        SeasonTeam::create(['season_league_id' => $seasonLeague->id, 'team_id' => $team->id]);
 
         return $team;
     }
@@ -196,6 +206,7 @@ class LeagueController extends Controller
 
             $botTeam = Team::firstOrCreate(['user_id' => $botUser->id], ['name' => $position->bot_name ?: 'Chłopaki z orlika']);
             $position->update(['team_id' => $botTeam->id]);
+            SeasonTeam::firstOrCreate(['season_league_id' => $seasonLeague->id, 'team_id' => $botTeam->id], ['position' => $position->position]);
         }
 
         $teamIds = $positions->pluck('team_id')->filter()->values()->all();
