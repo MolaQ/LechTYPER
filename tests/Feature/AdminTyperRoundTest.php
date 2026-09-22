@@ -85,6 +85,7 @@ it('links the admin schedule to submitted prediction preview', function () {
     $this->actingAs($admin)
         ->get(route('admin.schedule.index'))
         ->assertOk()
+        ->assertDontSee('Dodaj źródło wyników')
         ->assertSee(route('admin.typer.matches.predictions', $match), false)
         ->assertSee('Podgląd typów');
 });
@@ -136,4 +137,11 @@ it('allows an admin to set match-specific bonus answers with the result', functi
         ->and($prediction->fresh()->points_base)->toBe(1)
         ->and($prediction->fresh()->points_offensive)->toBe(1)
         ->and($prediction->fresh()->total_points)->toBe(2);
+
+    $this->actingAs($admin)
+        ->get(route('admin.typer.matches.predictions', $match))
+        ->assertOk()
+        ->assertSee('Czy Lech oddał więcej strzałów?')
+        ->assertSee('Czy Lech zachował czyste konto?')
+        ->assertSee('Fan Z Wynikiem');
 });
