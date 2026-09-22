@@ -6,6 +6,7 @@ namespace App\Livewire\LechTyper;
 
 use App\Models\LechMatch;
 use App\Models\Prediction;
+use App\Models\H2hFixture;
 use App\Models\UserAnswer;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -110,7 +111,34 @@ class MatchPrediction extends Component
             ? null
             : LechMatch::query()->with(['competition', 'bonusQuestions'])->find($this->matchId);
 
-        return view('livewire.lech-typer.match-prediction', compact('match'));
+        return view('livewire.lech-typer.match-prediction', [
+            'match' => $match,
+            'opponentPrediction' => $match === null ? null : $this->opponentPrediction($match),
+        ]);
+    }
+
+    private function opponentPrediction(LechMatch $match): ?array
+    {
+        $fixture = H2hFixture::query()
+            ->where('match_id', $match->id)
+            ->where('user_id', auth()->id())
+            ->with('opponent')
+            ->first();
+
+        if ($fixture === null) {
+            return null;
+        }
+
+        $opponentPrediction = Prediction::query()
+            ->where('match_id', $match->id)
+            ->where('user_id', $fixture->opponent_id)
+            ->first();
+
+        return [
+            'name' => $fixture->opponent->name,
+            'locked' => ! $match->isTypingClosed(),
+            'prediction' => $opponentPrediction,
+        ];
     }
 
     public function offensiveAnsweredCount(): int
