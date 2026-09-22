@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/admin/typer/bonusy/{match}/przypisz', [AdminBonusController::class, 'assign'])->name('admin.bonuses.assign')->middleware('admin');
     Route::post('/admin/typer/bonusy/{match}/losuj', [AdminBonusController::class, 'drawMissing'])->name('admin.bonuses.draw')->middleware('admin');
     Route::post('/admin/typer/mecze', [AdminTyperController::class, 'storeMatch'])->name('admin.typer.matches.store')->middleware('admin');
+    Route::patch('/admin/typer/mecze/{match}', [AdminTyperController::class, 'updateMatch'])->name('admin.typer.matches.update')->middleware('admin');
     Route::patch('/admin/typer/mecze/{match}/wynik', [AdminTyperController::class, 'updateResult'])->name('admin.typer.matches.result.update')->middleware('admin');
     Route::get('/admin/typer/mecze/{match}/typy', [AdminTyperController::class, 'predictions'])->name('admin.typer.matches.predictions')->middleware('admin');
     Route::post('/admin/terminarz/mecze', [AdminLeagueManagementController::class, 'storeRealMatch'])->name('admin.schedule.matches.store')->middleware('admin');

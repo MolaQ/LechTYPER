@@ -128,6 +128,33 @@ it('moves an admin team out of the backyard league when assigning it to another 
     expect(SeasonTeam::query()->where('season_league_id', $regularLeague->id)->where('team_id', $team->id)->exists())->toBeTrue();
 });
 
+it('moves a regular fan team out of the backyard league when an admin assigns it to another league', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $fan = User::factory()->create(['name' => 'Kibic Awansujący']);
+    $season = Season::query()->where('status', 'active')->firstOrFail();
+    $backyardLeague = SeasonLeague::query()
+        ->where('season_id', $season->id)
+        ->whereHas('league', fn ($query) => $query->where('level', 11))
+        ->firstOrFail();
+    $regularLeague = SeasonLeague::query()
+        ->where('season_id', $season->id)
+        ->whereHas('league', fn ($query) => $query->where('level', '<>', 11))
+        ->firstOrFail();
+    $team = Team::create(['user_id' => $fan->id, 'name' => $fan->name]);
+    SeasonTeam::create(['season_league_id' => $backyardLeague->id, 'team_id' => $team->id]);
+    $position = $regularLeague->positions()->firstOrCreate(['position' => 1]);
+
+    $this->actingAs($admin)->post(route('admin.leagues.teams.store'), [
+        'user_id' => $fan->id,
+        'season_league_id' => $regularLeague->id,
+        'position' => 1,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    expect(SeasonTeam::query()->where('season_league_id', $backyardLeague->id)->where('team_id', $team->id)->exists())->toBeFalse();
+    expect(SeasonTeam::query()->where('season_league_id', $regularLeague->id)->where('team_id', $team->id)->exists())->toBeTrue();
+    expect($position->fresh()->team_id)->toBe($team->id);
+});
+
 it('derives inactivity from the absence of submitted types and removes a regular assignment', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $user = User::factory()->create();

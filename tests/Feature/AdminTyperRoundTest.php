@@ -25,6 +25,28 @@ it('assigns a Lech match to a specific round and shows it in the admin list', fu
     $this->actingAs($admin)->get(route('admin.typer.index'))->assertOk()->assertSee('Kolejka 5');
 });
 
+it('allows an admin to edit a match and reassign it to a new round', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $competition = Competition::create(['name' => 'Edycja Liga', 'slug' => 'edycja-liga']);
+    $match = LechMatch::create([
+        'competition_id' => $competition->id,
+        'round_number' => 2,
+        'opponent' => 'Rywal Przed Edycją',
+        'scheduled_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.typer.matches.update', $match), [
+        'competition_id' => $competition->id,
+        'round_number' => 7,
+        'opponent' => 'Rywal Po Edycji',
+        'lech_home' => 1,
+        'scheduled_at' => now()->addDays(2)->format('Y-m-d H:i'),
+    ])->assertRedirect();
+
+    expect($match->fresh()->round_number)->toBe(7)
+        ->and($match->fresh()->opponent)->toBe('Rywal Po Edycji');
+});
+
 it('lets an admin preview every prediction submitted for a match', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $user = User::factory()->create(['name' => 'Kibic Typer']);
