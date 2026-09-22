@@ -294,6 +294,7 @@ class AdminLeagueManagementController extends Controller
 
         $botTeam = Team::firstOrCreate(['user_id' => $botUser->id], ['name' => $position->bot_name ?: 'Chłopaki z orlika']);
         $position->update(['team_id' => $botTeam->id]);
+        SeasonTeam::firstOrCreate(['season_league_id' => $seasonLeague->id, 'team_id' => $botTeam->id], ['position' => $position->position]);
     }
 
     public function removeTeamFromLeague(SeasonTeam $seasonTeam, DatabaseManager $database): RedirectResponse
@@ -478,7 +479,7 @@ class AdminLeagueManagementController extends Controller
         ]);
         $round->update(collect($data)->except(['real_score_home', 'real_score_away', 'correct_answers'])->all());
 
-        if ($data['real_score_home'] !== null && $data['real_score_away'] !== null) {
+        if (($data['real_score_home'] ?? null) !== null && ($data['real_score_away'] ?? null) !== null) {
             app(LeagueMatchService::class)->completeRound($round, (int) $data['real_score_home'], (int) $data['real_score_away'], $data['correct_answers'] ?? []);
 
             return back()->with('status', "Kolejka {$round->round_number} została rozliczona, a tabela zaktualizowana.");
