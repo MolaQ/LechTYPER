@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\CalculateMatchPointsAction;
 use App\Models\BonusQuestionPool;
 use App\Models\Competition;
 use App\Models\LechMatch;
@@ -85,6 +86,8 @@ class AdminTyperController extends Controller
         foreach ($match->bonusQuestions as $question) {
             $question->update(['correct_answer' => $data['correct_answers'][$question->id] ?? null]);
         }
+
+        app(CalculateMatchPointsAction::class)->settleMatch($match->fresh(['bonusQuestions', 'h2hFixtures']));
 
         return back()->with('status', 'Wynik i poprawne odpowiedzi zostały zapisane.');
     }
