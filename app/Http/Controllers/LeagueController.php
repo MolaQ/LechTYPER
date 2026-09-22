@@ -93,12 +93,17 @@ class LeagueController extends Controller
             ->with('realMatch')
             ->orderBy('round_number')
             ->get();
+        $typerMatchesByRound = LechMatch::query()
+            ->whereNotNull('round_number')
+            ->with('competition')
+            ->get()
+            ->keyBy('round_number');
 
         $nextMatch = $matches->first(fn ($match) => $match->status === 'scheduled' && $match->scheduled_at->isFuture() && (! $team || $match->home_team_id === $team->id || $match->away_team_id === $team->id));
         $nextMatch?->loadMissing('leagueRound.bonusQuestions');
         $selection = $team && $nextMatch ? $nextMatch->selections()->where('team_id', $team->id)->with('answers')->first() : null;
 
-        return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'seasonRounds', 'nextMatch', 'selection'));
+        return view('league.index', compact('season', 'league', 'seasonLeague', 'team', 'myTeamStanding', 'standings', 'matches', 'seasonRounds', 'typerMatchesByRound', 'nextMatch', 'selection'));
     }
 
     public function match(Request $request, string $leagueSlug, MatchGame $match): View
