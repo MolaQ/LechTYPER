@@ -14,6 +14,8 @@ use App\Models\SeasonRound;
 use App\Models\SeasonTeam;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\LeagueMatchService;
+use App\Services\RoundBonusQuestionService;
 use App\Services\SwissLeagueService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\RedirectResponse;
@@ -57,7 +59,7 @@ class AdminLeagueManagementController extends Controller
             'selectedSeasonLeague' => $selectedSeasonLeague,
             'selectedTeams' => $selectedSeasonLeague->teams()->with(['team.user', 'seasonLeague.season'])->get(),
             'positions' => $selectedSeasonLeague->positions()->with('team')->get(),
-            'selectedRounds' => $selectedSeasonLeague->rounds()->with('matches.homeTeam', 'matches.awayTeam')->get(),
+            'selectedRounds' => $selectedSeasonLeague->rounds()->with(['matches.homeTeam', 'matches.awayTeam', 'bonusQuestions'])->get(),
             'selectedMatches' => $selectedSeasonLeague->matches()->with(['homeTeam', 'awayTeam'])->orderBy('scheduled_at')->get(),
             'roundCount' => $this->roundCount($season, $selectedSeasonLeague),
             'users' => User::query()->orderBy('name')->get(),
@@ -160,6 +162,11 @@ class AdminLeagueManagementController extends Controller
         $user = User::query()->findOrFail($data['user_id']);
         $team = Team::firstOrCreate(['user_id' => $user->id], ['name' => $user->name]);
         $botTeamId = $isBotPosition ? $position->team_id : null;
+
+        if ($botTeamId !== null) {
+            // The bot's own season-team row must disappear once a real team takes its slot, or the league gets a phantom extra row.
+            SeasonTeam::query()->where('season_league_id', $seasonLeague->id)->where('team_id', $botTeamId)->delete();
+        }
 
         $existingSeasonTeam = SeasonTeam::query()
             ->where('season_league_id', $seasonLeague->id)
@@ -429,6 +436,7 @@ class AdminLeagueManagementController extends Controller
                     'round_number' => $round + 1,
                     'scheduled_at' => now()->addDays($round),
                 ]);
+                app(RoundBonusQuestionService::class)->assignRandomQuestions($leagueRound);
 
                 $half = intdiv(count($roundTeams), 2);
                 for ($index = 0; $index < $half; $index++) {
@@ -463,8 +471,18 @@ class AdminLeagueManagementController extends Controller
             'real_home_team' => ['required', 'string', 'max:120'],
             'real_away_team' => ['required', 'string', 'max:120'],
             'competition' => ['required', Rule::in(self::COMPETITIONS)],
+            'real_score_home' => ['nullable', 'integer', 'min:0', 'max:99'],
+            'real_score_away' => ['nullable', 'integer', 'min:0', 'max:99'],
+            'correct_answers' => ['array'],
+            'correct_answers.*' => ['nullable', 'boolean'],
         ]);
-        $round->update($data);
+        $round->update(collect($data)->except(['real_score_home', 'real_score_away', 'correct_answers'])->all());
+
+        if ($data['real_score_home'] !== null && $data['real_score_away'] !== null) {
+            app(LeagueMatchService::class)->completeRound($round, (int) $data['real_score_home'], (int) $data['real_score_away'], $data['correct_answers'] ?? []);
+
+            return back()->with('status', "Kolejka {$round->round_number} została rozliczona, a tabela zaktualizowana.");
+        }
 
         return back()->with('status', "Kolejka {$round->round_number} została zaktualizowana.");
     }
