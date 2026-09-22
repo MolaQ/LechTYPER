@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Livewire\LechTyper;
 
+use App\Models\H2hFixture;
 use App\Models\LechMatch;
 use App\Models\Prediction;
-use App\Models\H2hFixture;
+use App\Models\RealMatch;
+use App\Models\Season;
 use App\Models\UserAnswer;
+use App\Services\SyncRealMatchToLechTyperService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
@@ -22,8 +25,32 @@ class MatchPrediction extends Component
     /** @var array<int, bool|null> */
     public array $answers = [];
 
+    public function selectMatch(int $matchId): void
+    {
+        $match = LechMatch::query()->whereKey($matchId)->with('bonusQuestions')->firstOrFail();
+
+        $this->matchId = $match->id;
+        $this->loadPrediction($match);
+    }
+
+    public function closeMatch(): void
+    {
+        $this->matchId = null;
+        $this->homeScore = 0;
+        $this->awayScore = 0;
+        $this->answers = [];
+    }
+
     public function mount(): void
     {
+        $activeSeason = Season::query()->where('status', 'active')->first();
+        if ($activeSeason !== null) {
+            RealMatch::query()
+                ->where('season_id', $activeSeason->id)
+                ->get()
+                ->each(fn (RealMatch $realMatch) => app(SyncRealMatchToLechTyperService::class)->sync($realMatch));
+        }
+
         $match = LechMatch::query()
             ->where('status', 'scheduled')
             ->where('scheduled_at', '>', now())
@@ -35,7 +62,11 @@ class MatchPrediction extends Component
             return;
         }
 
-        $this->matchId = $match->id;
+        $this->matchId = null;
+    }
+
+    private function loadPrediction(LechMatch $match): void
+    {
         $prediction = Prediction::query()
             ->where('user_id', auth()->id())
             ->where('match_id', $match->id)
@@ -110,9 +141,15 @@ class MatchPrediction extends Component
         $match = $this->matchId === null
             ? null
             : LechMatch::query()->with(['competition', 'bonusQuestions'])->find($this->matchId);
+        $matches = LechMatch::query()
+            ->where('status', 'scheduled')
+            ->with('competition')
+            ->orderBy('scheduled_at')
+            ->get();
 
         return view('livewire.lech-typer.match-prediction', [
             'match' => $match,
+            'matches' => $matches,
             'opponentPrediction' => $match === null ? null : $this->opponentPrediction($match),
         ]);
     }
