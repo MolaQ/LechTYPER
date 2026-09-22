@@ -167,20 +167,18 @@
 
                     <aside class="secondary-column">
                         <div class="league-panel p-4 mb-4">
-                            <p class="eyebrow mb-3">{{ $team ? 'Twój skład' : 'Strefa użytkownika' }}</p>
+                            <p class="eyebrow mb-3">{{ $team ? 'Twój najbliższy typ' : 'Strefa użytkownika' }}</p>
                             @auth
-                            @forelse($players as $teamPlayer)
-                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                                    <span>{{ $teamPlayer->player->name }}</span>
-                                    @if($teamPlayer->isInjured())
-                                        <span class="injury-mark" title="Kontuzja do {{ $teamPlayer->injury_until->format('d.m.Y H:i') }}">✕</span>
-                                    @endif
-                                </div>
-                            @empty
-                                <p class="text-muted-custom mb-0">Administrator nie wprowadził jeszcze aktualnego składu.</p>
-                            @endforelse
+                                @if($nextMatch && $selection)
+                                    <p class="mb-1"><strong>{{ $selection->home_score }}:{{ $selection->away_score }}</strong></p>
+                                    <p class="text-muted-custom small mb-0">{{ $nextMatch->homeTeam->name }} vs {{ $nextMatch->awayTeam->name }}</p>
+                                @elseif($nextMatch)
+                                    <p class="text-muted-custom mb-0">Nie wytypowałeś jeszcze najbliższego meczu.</p>
+                                @else
+                                    <p class="text-muted-custom mb-0">Brak zaplanowanego meczu do typowania.</p>
+                                @endif
                             @else
-                                <p class="text-muted-custom mb-3">Zaloguj się, aby zobaczyć swój skład i historię typowań.</p>
+                                <p class="text-muted-custom mb-3">Zaloguj się, aby zobaczyć swój typ i historię typowań.</p>
                                 <a class="btn btn-outline-primary btn-sm" href="{{ route('login') }}">Zaloguj się</a>
                             @endauth
                         </div>
