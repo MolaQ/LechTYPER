@@ -88,26 +88,10 @@
                                 </div>
 
                                 @auth
-                                <form method="POST" action="{{ route('league.selection.store', $nextMatch) }}">
-                                    @csrf
-                                    <div class="row g-2">
-                                        @foreach($players as $teamPlayer)
-                                            <div class="col-sm-6 col-xl-4">
-                                                <label class="player-option d-flex align-items-center gap-2 p-2">
-                                                    <input type="checkbox" name="players[]" value="{{ $teamPlayer->player_id }}" @checked($selection?->players->contains('player_id', $teamPlayer->player_id)) @disabled($teamPlayer->isInjured())>
-                                                    <span>{{ $teamPlayer->player->name }}</span>
-                                                    @if($teamPlayer->isInjured())
-                                                        <span class="injury-mark" title="Kontuzja do {{ $teamPlayer->injury_until->format('d.m.Y H:i') }}">✕</span>
-                                                    @endif
-                                                </label>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                    <button class="btn btn-primary mt-3" type="submit">Zapisz 5 zawodników</button>
-                                </form>
+                                @include('league.partials.prediction-form', ['match' => $nextMatch, 'selection' => $selection])
                                 @else
                                     <div class="mini-panel mt-3">
-                                        <strong>Zaloguj się, aby typować skład.</strong>
+                                        <strong>Zaloguj się, aby typować mecz.</strong>
                                         <p class="text-muted-custom small mb-2">Tabela i terminarz są dostępne publicznie.</p>
                                         <a class="btn btn-primary btn-sm" href="{{ route('login') }}">Zaloguj się</a>
                                     </div>
@@ -153,29 +137,27 @@
 
                         <div class="league-panel fixture-panel p-4">
                             <p class="eyebrow mb-2">Terminarz</p>
-                            <h2 class="font-display h4 mb-3">Kolejeki i mecze</h2>
-                            @if($seasonRounds->isNotEmpty())
-                                <div class="d-grid gap-2 mb-4">
-                                    @foreach($seasonRounds as $seasonRound)
-                                        <div class="border rounded-3 p-3">
-                                            <div class="d-flex justify-content-between align-items-center gap-3"><strong>Kolejka {{ $seasonRound->round_number }}</strong><span class="small text-muted-custom">{{ $seasonRound->realMatch ? $seasonRound->realMatch->home_team.' - '.$seasonRound->realMatch->away_team : 'Mecz Lecha nieprzypisany' }}</span></div>
-                                            @if($seasonRound->realMatch)<small class="text-muted-custom">{{ $seasonRound->realMatch->competition }} · źródło punktacji typów</small>@endif
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @endif
+                            <h2 class="font-display h4 mb-3">Kolejki i mecze</h2>
                             <div class="d-grid gap-3">
-                                @forelse($matches as $match)
-                                    <a href="{{ route('league.match', [$league->slug, $match->id]) }}" class="match-row d-flex justify-content-between align-items-center p-3 rounded-3 border">
-                                        <div>
-                                            <small class="text-muted-custom d-block mb-1">Kolejka {{ $match->round_number }}</small>
-                                            <strong>{{ $match->homeTeam->name }} vs {{ $match->awayTeam->name }}</strong>
+                                @forelse($seasonRounds as $seasonRound)
+                                    @php $roundMatches = $matches->where('round_number', $seasonRound->round_number); @endphp
+                                    <div class="border rounded-3 p-3">
+                                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2"><strong>Kolejka {{ $seasonRound->round_number }}</strong><span class="small text-muted-custom">{{ $seasonRound->realMatch ? $seasonRound->realMatch->home_team.' - '.$seasonRound->realMatch->away_team : 'Mecz Lecha nieprzypisany' }}</span></div>
+                                        @if($seasonRound->realMatch)<small class="text-muted-custom d-block mb-2">{{ $seasonRound->realMatch->competition }} · źródło punktacji typów</small>@endif
+                                        <div class="d-grid gap-2">
+                                            @forelse($roundMatches as $match)
+                                                <a href="{{ route('league.match', [$league->slug, $match->id]) }}" class="match-row d-flex justify-content-between align-items-center p-2 rounded-3 border text-decoration-none">
+                                                    <strong>{{ $match->homeTeam->name }} vs {{ $match->awayTeam->name }}</strong>
+                                                    <div class="text-end">
+                                                        <small class="d-block text-muted-custom">{{ $match->scheduled_at->format('d.m.Y H:i') }}</small>
+                                                        <span class="badge {{ $match->status === 'scheduled' ? 'text-bg-light' : 'text-bg-success' }} mt-1">{{ $match->status === 'scheduled' ? 'Typowanie' : 'Sfinalizowano' }}</span>
+                                                    </div>
+                                                </a>
+                                            @empty
+                                                <p class="small text-muted-custom mb-0">Brak par w tej kolejce.</p>
+                                            @endforelse
                                         </div>
-                                        <div class="text-end">
-                                            <small class="d-block text-muted-custom">{{ $match->scheduled_at->format('d.m.Y H:i') }}</small>
-                                            <span class="badge {{ $match->status === 'scheduled' ? 'text-bg-light' : 'text-bg-success' }} mt-1">{{ $match->status === 'scheduled' ? 'Typowanie' : 'Sfinalizowano' }}</span>
-                                        </div>
-                                    </a>
+                                    </div>
                                 @empty
                                     <p class="text-muted-custom mb-0">Brak zaplanowanych meczów dla tej ligi.</p>
                                 @endforelse
