@@ -92,7 +92,7 @@ class LeagueMatchService
             $answers,
         );
 
-        $selection->update(['points_base' => $points['base'], 'points_offensive' => $points['offensive']]);
+        $selection->update(['points_base' => $points['base'], 'points_offensive' => $points['offensive'], 'total_points' => $points['total']]);
 
         return ['selection' => $selection, 'defensive' => $points['defensive']];
     }
@@ -143,4 +143,3 @@ class LeagueMatchService
         $standing->increment($result > 0 ? 'wins' : ($result < 0 ? 'losses' : 'draws'));
     }
 }
-
