@@ -7,8 +7,11 @@ namespace App\Http\Controllers;
 use App\Actions\CalculateMatchPointsAction;
 use App\Models\BonusQuestionPool;
 use App\Models\Competition;
+use App\Models\LeagueRound;
 use App\Models\LechMatch;
 use App\Models\Prediction;
+use App\Models\Season;
+use App\Services\LeagueMatchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -88,19 +91,57 @@ class AdminTyperController extends Controller
         }
 
         app(CalculateMatchPointsAction::class)->settleMatch($match->fresh(['bonusQuestions', 'h2hFixtures']));
+        $this->settleMatchingLeagueRounds($match->fresh('bonusQuestions'));
 
         return back()->with('status', 'Wynik i poprawne odpowiedzi zostały zapisane.');
     }
 
+    private function settleMatchingLeagueRounds(LechMatch $match): void
+    {
+        if ($match->round_number === null || $match->result_home === null || $match->result_away === null) {
+            return;
+        }
+
+        $season = Season::query()->where('status', 'active')->first();
+        if ($season === null) {
+            return;
+        }
+
+        $homeScore = $match->lech_home ? $match->result_home : $match->result_away;
+        $awayScore = $match->lech_home ? $match->result_away : $match->result_home;
+
+        LeagueRound::query()
+            ->where('round_number', $match->round_number)
+            ->whereHas('seasonLeague', fn ($query) => $query
+                ->where('season_id', $season->id)
+                ->whereHas('league', fn ($leagueQuery) => $leagueQuery->where('level', '<>', 11)))
+            ->with('bonusQuestions')
+            ->get()
+            ->each(function (LeagueRound $round) use ($match, $homeScore, $awayScore): void {
+                $correctAnswers = [];
+                foreach ($round->bonusQuestions as $question) {
+                    $sourceQuestion = $match->bonusQuestions->firstWhere('question_text', $question->question_text);
+                    $correctAnswers[$question->id] = $sourceQuestion?->correct_answer;
+                }
+
+                app(LeagueMatchService::class)->completeRound($round, (int) $homeScore, (int) $awayScore, $correctAnswers);
+            });
+    }
+
     public function predictions(LechMatch $match): View
     {
+        $match->load(['competition', 'bonusQuestions']);
+        $predictions = Prediction::query()
+            ->where('match_id', $match->id)
+            ->with(['user', 'answers.question'])
+            ->orderByDesc('total_points')
+            ->get();
+
         return view('admin.typer.predictions', [
-            'match' => $match->load('competition'),
-            'predictions' => Prediction::query()
-                ->where('match_id', $match->id)
-                ->with(['user', 'match.bonusQuestions'])
-                ->orderByDesc('total_points')
-                ->get(),
+            'match' => $match,
+            'predictions' => $predictions,
+            'offensiveQuestions' => $match->bonusQuestions->where('type', 'offensive')->values(),
+            'defensiveQuestions' => $match->bonusQuestions->where('type', 'defensive')->values(),
         ]);
     }
 }
