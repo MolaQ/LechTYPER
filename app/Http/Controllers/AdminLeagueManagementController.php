@@ -16,7 +16,9 @@ use App\Models\Team;
 use App\Models\User;
 use App\Services\LeagueMatchService;
 use App\Services\RoundBonusQuestionService;
+use App\Services\SeasonTeamCleanupService;
 use App\Services\SwissLeagueService;
+use App\Services\SyncRealMatchToLechTyperService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -511,7 +513,6 @@ class AdminLeagueManagementController extends Controller
             'seasons' => $seasons,
             'season' => $season,
             'rounds' => $season->seasonRounds()->with('realMatch')->get(),
-            'realMatches' => $season->realMatches()->with('seasonRound')->get(),
             'typerMatches' => LechMatch::query()->with('competition')->withCount('predictions')->orderByDesc('scheduled_at')->get(),
         ]);
     }
@@ -535,7 +536,8 @@ class AdminLeagueManagementController extends Controller
             return back()->withErrors(['season_round_id' => 'Wybrana kolejka nie należy do tego sezonu.']);
         }
 
-        RealMatch::create($data);
+        $realMatch = RealMatch::create($data);
+        app(SyncRealMatchToLechTyperService::class)->sync($realMatch);
 
         return back()->with('status', 'Mecz rzeczywisty został dodany.');
     }
@@ -552,6 +554,7 @@ class AdminLeagueManagementController extends Controller
         }
 
         $realMatch->update(['season_round_id' => $round->id]);
+        app(SyncRealMatchToLechTyperService::class)->sync($realMatch->fresh());
 
         return back()->with('status', 'Mecz Lecha został przypisany do kolejki.');
     }
@@ -584,6 +587,7 @@ class AdminLeagueManagementController extends Controller
     {
         foreach ($season->seasonLeagues()->get() as $seasonLeague) {
             $this->cleanupDuplicateSeasonTeams($seasonLeague);
+            app(SeasonTeamCleanupService::class)->reconcile($seasonLeague);
 
             if ($seasonLeague->rounds()->exists() || $seasonLeague->matches()->exists()) {
                 continue;
