@@ -149,7 +149,7 @@ class AdminTyperController extends Controller
             $predictions = $sourceMatch->predictions()->with('user')->get();
 
             foreach ($predictions as $prediction) {
-                $teamId = Team::query()->where('user_id', $prediction->user_id)->value('id');
+                $teamId = (int) Team::query()->where('user_id', $prediction->user_id)->value('id');
                 if ($teamId === null || ! in_array($teamId, $teamIds, true)) {
                     continue;
                 }
