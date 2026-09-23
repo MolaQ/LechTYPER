@@ -24,6 +24,7 @@ Route::view('/admin', 'admin')->name('admin.dashboard')->middleware(['auth', 'ad
 Route::get('/liga', [LeagueController::class, 'index'])->name('league.index');
 Route::get('/liga/{leagueSlug}', [LeagueController::class, 'show'])->name('league.show');
 Route::get('/liga/{leagueSlug}/mecz/{match}', [LeagueController::class, 'match'])->name('league.match');
+Route::get('/liga/{leagueSlug}/mecz-lecha/{match}', [LeagueController::class, 'realMatch'])->name('league.real-match');
 Route::view('/faq', 'faq')->name('faq');
 Route::middleware('auth')->group(function (): void {
     Route::view('/typer', 'typer')->name('typer');
