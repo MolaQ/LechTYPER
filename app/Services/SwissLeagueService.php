@@ -59,6 +59,9 @@ class SwissLeagueService
             ->orderByDesc('points')
             ->orderByDesc(DB::raw('score_for - score_against'))
             ->orderByDesc('score_for')
+            ->orderByDesc('wins')
+            ->orderByDesc('draws')
+            ->orderByDesc('bonus_points')
             ->orderBy('team_id')
             ->get();
     }
