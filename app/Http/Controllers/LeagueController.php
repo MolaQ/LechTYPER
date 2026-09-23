@@ -22,6 +22,8 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class LeagueController extends Controller
 {
@@ -39,13 +41,33 @@ class LeagueController extends Controller
             ->orderBy('scheduled_at')
             ->first();
         $leagueTeam = $request->user() ? $this->teamFor($request) : null;
-        $standings = SeasonTeam::query()
+        $standingsQuery = SeasonTeam::query()
             ->where('season_league_id', $seasonLeague->id)
             ->with('team')
             ->orderByDesc('points')
             ->orderByDesc('score_for')
-            ->orderBy('team_id')
-            ->get();
+            ->orderByDesc(DB::raw('score_for - score_against'))
+            ->orderByDesc('wins')
+            ->orderByDesc('draws')
+            ->orderByDesc('bonus_points')
+            ->orderBy('team_id');
+        $allStandings = $standingsQuery->get();
+        $perPage = 5;
+        $page = max(1, $request->integer('standings_page', 1));
+        if ($team && ! $request->has('standings_page')) {
+            $teamIndex = $allStandings->search(fn ($standing) => $standing->team_id === $team->id);
+            if ($teamIndex !== false) {
+                $page = intdiv($teamIndex, $perPage) + 1;
+            }
+        }
+        $standings = new LengthAwarePaginator(
+            $allStandings->forPage($page, $perPage)->values(),
+            $allStandings->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'standings_page', 'query' => $request->query()],
+        );
+        $standings->withQueryString();
         $leaguePositions = $seasonLeague->positions()->with('team')->get();
         $leagueMatches = $seasonLeague->matches()
             ->with(['homeTeam', 'awayTeam'])
@@ -75,24 +97,52 @@ class LeagueController extends Controller
             ->where('season_league_id', $seasonLeague->id)
             ->first() : null;
 
-        $standings = SeasonTeam::query()
+        $standingsQuery = SeasonTeam::query()
             ->where('season_league_id', $seasonLeague->id)
             ->with('team')
             ->orderByDesc('points')
             ->orderByDesc('score_for')
-            ->orderBy('team_id')
-            ->get();
+            ->orderByDesc(DB::raw('score_for - score_against'))
+            ->orderByDesc('wins')
+            ->orderByDesc('draws')
+            ->orderByDesc('bonus_points')
+            ->orderBy('team_id');
+
+        if ($league->level === 11) {
+            $allStandings = $standingsQuery->get();
+            $perPage = 10;
+            $page = max(1, $request->integer('standings_page', 1));
+            if ($team && ! $request->has('standings_page')) {
+                $teamIndex = $allStandings->search(fn ($standing) => $standing->team_id === $team->id);
+                if ($teamIndex !== false) {
+                    $page = intdiv($teamIndex, $perPage) + 1;
+                }
+            }
+
+            $standings = new LengthAwarePaginator(
+                $allStandings->forPage($page, $perPage)->values(),
+                $allStandings->count(),
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'pageName' => 'standings_page'],
+            );
+            $standings->withQueryString();
+        } else {
+            $standings = $standingsQuery->get();
+        }
 
         $matches = MatchGame::query()
             ->where('season_league_id', $seasonLeague->id)
             ->with(['homeTeam', 'awayTeam'])
             ->orderBy('scheduled_at')
             ->get();
-        $seasonRounds = SeasonRound::query()
-            ->where('season_id', $season->id)
-            ->with('realMatch')
-            ->orderBy('round_number')
-            ->get();
+        $seasonRounds = $league->level === 11
+            ? $seasonLeague->rounds()->with(['matches.homeTeam', 'matches.awayTeam', 'bonusQuestions'])->get()
+            : SeasonRound::query()
+                ->where('season_id', $season->id)
+                ->with('realMatch')
+                ->orderBy('round_number')
+                ->get();
         $typerMatchesByRound = LechMatch::query()
             ->whereNotNull('round_number')
             ->with('competition')
@@ -113,10 +163,27 @@ class LeagueController extends Controller
         $season = Season::query()->where('status', 'active')->with('seasonLeagues.league')->firstOrFail();
         $league = $match->seasonLeague->league;
         $team = $request->user() ? $this->teamFor($request) : null;
-        $match->loadMissing('leagueRound.bonusQuestions');
+        $match->loadMissing(['leagueRound.bonusQuestions', 'homeTeam.user', 'awayTeam.user', 'selections.team.user', 'selections.answers.question']);
         $selection = $team ? $match->selections()->where('team_id', $team->id)->with('answers')->first() : null;
+        $isParticipant = $team !== null && in_array($team->id, [$match->home_team_id, $match->away_team_id], true);
+        $homeTypingState = $match->selections->firstWhere('team_id', $match->home_team_id);
+        $awayTypingState = $match->selections->firstWhere('team_id', $match->away_team_id);
 
-        return view('league.match', compact('season', 'league', 'match', 'team', 'selection'));
+        $homeSelection = $homeTypingState;
+        $awaySelection = $awayTypingState;
+
+        return view('league.match', compact('season', 'league', 'match', 'team', 'selection', 'isParticipant', 'homeSelection', 'awaySelection'));
+    }
+
+    public function realMatch(string $leagueSlug, LechMatch $match): View
+    {
+        $league = League::query()->where('slug', $leagueSlug)->firstOrFail();
+        abort_unless($match->round_number !== null, 404);
+
+        return view('league.real-match', [
+            'league' => $league,
+            'match' => $match->load(['competition', 'bonusQuestions']),
+        ]);
     }
 
     public function submitSelection(Request $request, MatchGame $match): RedirectResponse
