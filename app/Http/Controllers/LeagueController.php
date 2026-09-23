@@ -54,8 +54,8 @@ class LeagueController extends Controller
         $allStandings = $standingsQuery->get();
         $perPage = 5;
         $page = max(1, $request->integer('standings_page', 1));
-        if ($team && ! $request->has('standings_page')) {
-            $teamIndex = $allStandings->search(fn ($standing) => $standing->team_id === $team->id);
+        if ($leagueTeam && ! $request->has('standings_page')) {
+            $teamIndex = $allStandings->search(fn ($standing) => $standing->team_id === $leagueTeam->id);
             if ($teamIndex !== false) {
                 $page = intdiv($teamIndex, $perPage) + 1;
             }
