@@ -252,6 +252,7 @@ class LeagueController extends Controller
         app(SeasonTeamCleanupService::class)->reconcile($seasonLeague);
 
         if ($seasonLeague->league->level === 11) {
+            app(SwissLeagueService::class)->simulateDueRounds($seasonLeague);
             app(SwissLeagueService::class)->generateNextRound($seasonLeague);
 
             return;
