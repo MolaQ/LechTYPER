@@ -76,6 +76,10 @@ class LeagueMatchService
             $selection = MatchSelection::create(['match_id' => $match->id, 'team_id' => $teamId, 'submitted_at' => now()]);
         }
 
+        if ($this->isBot($team)) {
+            $selection->answers()->delete();
+        }
+
         $answers = MatchSelectionAnswer::query()
             ->where('match_selection_id', $selection->id)
             ->pluck('answer', 'league_round_bonus_question_id')
@@ -106,14 +110,6 @@ class LeagueMatchService
             'submitted_at' => now(),
         ]);
 
-        foreach ($offensiveQuestions->concat($defensiveQuestions) as $question) {
-            MatchSelectionAnswer::create([
-                'match_selection_id' => $selection->id,
-                'league_round_bonus_question_id' => $question->id,
-                'answer' => (bool) random_int(0, 1),
-            ]);
-        }
-
         return $selection;
     }
 
@@ -140,6 +136,7 @@ class LeagueMatchService
             'draws' => 0,
             'losses' => 0,
             'points' => 0,
+            'bonus_points' => 0,
             'score_for' => 0,
             'score_against' => 0,
         ]);
@@ -148,6 +145,15 @@ class LeagueMatchService
             ->where('status', 'completed')
             ->get()
             ->each(fn (MatchGame $match) => $this->updateStandings($match, (int) $seasonLeague->id, (int) $match->home_score, (int) $match->away_score));
+
+        foreach ($seasonLeague->teams as $seasonTeam) {
+            $seasonTeam->update([
+                'bonus_points' => (int) MatchSelection::query()
+                    ->where('team_id', $seasonTeam->team_id)
+                    ->whereHas('match', fn ($query) => $query->where('season_league_id', $seasonLeague->id)->where('status', 'completed'))
+                    ->sum(DB::raw('points_offensive + points_defensive_applied')),
+            ]);
+        }
     }
 
     private function updateTeamStanding(int $seasonLeagueId, int $teamId, int $points, int $scoreFor, int $scoreAgainst, int $result): void
