@@ -1,0 +1,2 @@
+<?php
+require __DIR__.'/vendor/autoload.php';$app=require __DIR__.'/bootstrap/app.php';$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();$g=App\Models\MatchGame::with(['leagueRound.bonusQuestions','selections'])->find(1);foreach($g->leagueRound->bonusQuestions->where('type','defensive')->values() as $i=>$q)echo ($i+1).'='.var_export($q->correct_answer,true).' ';echo PHP_EOL;foreach($g->selections as $s)echo $s->team_id.':pen='.$s->points_defensive_applied.' total='.$s->total_points.PHP_EOL;
