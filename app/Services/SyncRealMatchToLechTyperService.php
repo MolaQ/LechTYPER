@@ -28,6 +28,7 @@ class SyncRealMatchToLechTyperService
         ]);
         $match->fill([
             'competition_id' => $competition->id,
+            'season_id' => $realMatch->season_id,
             'round_number' => $realMatch->seasonRound?->round_number,
             'scheduled_at' => $realMatch->scheduled_at,
             'opponent' => $opponent,
