@@ -403,6 +403,7 @@ class AdminLeagueManagementController extends Controller
         $seasonLeague->loadMissing('league');
 
         if ($seasonLeague->league->level === 11) {
+            app(SwissLeagueService::class)->simulateDueRounds($seasonLeague);
             app(SwissLeagueService::class)->generateNextRound($seasonLeague);
 
             return;
