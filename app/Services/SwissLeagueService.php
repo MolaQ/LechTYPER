@@ -13,6 +13,31 @@ class SwissLeagueService
 {
     public const MAX_ROUNDS = 9;
 
+    /**
+     * Bot-only Swiss rounds have no real Lech match to score against, so once a round's
+     * kickoff time passes we simulate a result ourselves instead of leaving it stuck at 0:0.
+     */
+    public function simulateDueRounds(SeasonLeague $seasonLeague): void
+    {
+        $seasonLeague->loadMissing('league');
+
+        $round = $seasonLeague->rounds()->with(['matches', 'bonusQuestions'])->orderByDesc('round_number')->first();
+
+        while ($round !== null && $this->hasUnfinishedRound($round) && $round->scheduled_at->isPast()) {
+            $this->simulateRound($round);
+            $round = $seasonLeague->rounds()->with(['matches', 'bonusQuestions'])->orderByDesc('round_number')->first();
+        }
+    }
+
+    private function simulateRound(LeagueRound $round): void
+    {
+        $correctAnswers = $round->bonusQuestions
+            ->mapWithKeys(fn ($question): array => [$question->id => (bool) random_int(0, 1)])
+            ->all();
+
+        app(LeagueMatchService::class)->completeRound($round, random_int(0, 4), random_int(0, 4), $correctAnswers);
+    }
+
     public function generateNextRound(SeasonLeague $seasonLeague): ?LeagueRound
     {
         return DB::transaction(function () use ($seasonLeague): ?LeagueRound {
