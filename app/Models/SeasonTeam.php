@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 
-#[Fillable(['season_league_id', 'team_id', 'position', 'played', 'wins', 'draws', 'losses', 'points', 'score_for', 'score_against'])]
+#[Fillable(['season_league_id', 'team_id', 'position', 'played', 'wins', 'draws', 'losses', 'points', 'bonus_points', 'score_for', 'score_against'])]
 class SeasonTeam extends Model
 {
     protected static function booted(): void
