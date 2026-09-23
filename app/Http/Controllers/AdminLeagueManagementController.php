@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\League;
 use App\Models\LeaguePosition;
 use App\Models\LeagueRound;
-use App\Models\LechMatch;
 use App\Models\MatchGame;
 use App\Models\RealMatch;
 use App\Models\Season;
@@ -512,7 +511,6 @@ class AdminLeagueManagementController extends Controller
         return view('admin.leagues.schedule', [
             'seasons' => $seasons,
             'season' => $season,
-            'typerMatches' => LechMatch::query()->with('competition')->withCount('predictions')->orderByDesc('scheduled_at')->get(),
         ]);
     }
 
