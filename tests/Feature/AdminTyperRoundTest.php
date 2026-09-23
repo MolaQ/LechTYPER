@@ -6,6 +6,7 @@ use App\Models\BonusQuestion;
 use App\Models\Competition;
 use App\Models\LechMatch;
 use App\Models\Prediction;
+use App\Models\Season;
 use App\Models\User;
 use App\Models\UserAnswer;
 
@@ -49,6 +50,37 @@ it('allows an admin to edit a match and reassign it to a new round', function ()
         ->and($match->fresh()->opponent)->toBe('Rywal Po Edycji');
 });
 
+it('allows an admin to change the match date and round from its detail page', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $season = Season::query()->where('status', 'active')->firstOrFail();
+    $competition = Competition::create(['name' => 'Termin Liga', 'slug' => 'termin-liga']);
+    $match = LechMatch::create([
+        'season_id' => $season->id,
+        'competition_id' => $competition->id,
+        'round_number' => 1,
+        'opponent' => 'Rywal Terminu',
+        'scheduled_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.typer.matches.predictions', $match))
+        ->assertOk()
+        ->assertSee('Data, godzina i kolejka');
+
+    $this->actingAs($admin)
+        ->patch(route('admin.typer.matches.update', $match), [
+            'competition_id' => $competition->id,
+            'round_number' => 4,
+            'opponent' => 'Rywal Terminu',
+            'lech_home' => 1,
+            'scheduled_at' => now()->addDays(4)->format('Y-m-d H:i'),
+        ])
+        ->assertRedirect();
+
+    expect($match->fresh()->round_number)->toBe(4)
+        ->and($match->fresh()->scheduled_at->format('Y-m-d'))->toBe(now()->addDays(4)->format('Y-m-d'));
+});
+
 it('lets an admin preview every prediction submitted for a match', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $user = User::factory()->create(['name' => 'Kibic Typer']);
@@ -86,8 +118,8 @@ it('links the admin schedule to submitted prediction preview', function () {
         ->get(route('admin.schedule.index'))
         ->assertOk()
         ->assertDontSee('Dodaj źródło wyników')
-        ->assertSee(route('admin.typer.matches.predictions', $match), false)
-        ->assertSee('Podgląd typów');
+        ->assertDontSee('Wszystkie mecze Lecha')
+        ->assertDontSee(route('admin.typer.matches.predictions', $match), false);
 });
 
 it('allows an admin to set match-specific bonus answers with the result', function () {
