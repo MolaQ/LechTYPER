@@ -11,8 +11,15 @@ it('shows question selects and the draw button on the match management page', fu
     $competition = Competition::create(['name' => 'Widok Liga', 'slug' => 'widok-liga']);
     LechMatch::create(['competition_id' => $competition->id, 'opponent' => 'Widok Rywal', 'scheduled_at' => now()->addDay()]);
 
+    $match = LechMatch::query()->where('opponent', 'Widok Rywal')->firstOrFail();
+
     $this->actingAs($admin)
         ->get(route('admin.typer.index'))
+        ->assertOk()
+        ->assertSee('Mecze Lecha');
+
+    $this->actingAs($admin)
+        ->get(route('admin.typer.matches.predictions', $match))
         ->assertOk()
         ->assertSee('Losuj puste miejsca')
         ->assertSee('Wybierz pytanie 1');
