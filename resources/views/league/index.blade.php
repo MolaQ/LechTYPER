@@ -92,10 +92,10 @@
                                             <th>#</th>
                                             <th>Drużyna</th>
                                             <th>M</th>
-                                            <th>PKT</th>
-                                            <th>Bilans</th>
                                             <th>Z</th>
                                             <th>R</th>
+                                            <th>PKT</th>
+                                            <th>Bilans</th>
                                             <th>Bonus</th>
                                         </tr>
                                     </thead>
@@ -113,10 +113,10 @@
                                                 <td>{{ $position }}</td>
                                                 <td>{{ $standing->team->name }}</td>
                                                 <td>{{ $standing->played }}</td>
-                                                <td><strong>{{ $standing->points }}</strong></td>
-                                                <td>{{ $standing->score_for }}:{{ $standing->score_against }}</td>
                                                 <td>{{ $standing->wins }}</td>
                                                 <td>{{ $standing->draws }}</td>
+                                                <td><strong>{{ $standing->points }}</strong></td>
+                                                <td>{{ $standing->score_for }}:{{ $standing->score_against }}</td>
                                                 <td>{{ $standing->bonus_points }}</td>
                                             </tr>
                                         @endforeach

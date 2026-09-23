@@ -45,11 +45,11 @@ class LeagueController extends Controller
             ->where('season_league_id', $seasonLeague->id)
             ->with('team')
             ->orderByDesc('points')
-            ->orderByDesc('score_for')
             ->orderByDesc(DB::raw('score_for - score_against'))
+            ->orderByDesc('score_for')
+            ->orderByDesc('bonus_points')
             ->orderByDesc('wins')
             ->orderByDesc('draws')
-            ->orderByDesc('bonus_points')
             ->orderBy('team_id');
         $allStandings = $standingsQuery->get();
         $perPage = 5;
@@ -101,11 +101,11 @@ class LeagueController extends Controller
             ->where('season_league_id', $seasonLeague->id)
             ->with('team')
             ->orderByDesc('points')
-            ->orderByDesc('score_for')
             ->orderByDesc(DB::raw('score_for - score_against'))
+            ->orderByDesc('score_for')
+            ->orderByDesc('bonus_points')
             ->orderByDesc('wins')
             ->orderByDesc('draws')
-            ->orderByDesc('bonus_points')
             ->orderBy('team_id');
 
         if ($league->level === 11) {

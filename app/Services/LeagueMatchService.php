@@ -95,7 +95,7 @@ class LeagueMatchService
             $answers,
         );
 
-        $selection->update(['points_base' => $points['base'], 'points_offensive' => $points['offensive'], 'total_points' => $points['total']]);
+        $selection->update(['points_base' => $points['base'], 'points_offensive' => $points['offensive'], 'points_defensive' => $points['defensive'], 'total_points' => $points['total']]);
 
         return ['selection' => $selection, 'defensive' => $points['defensive']];
     }
@@ -128,6 +128,65 @@ class LeagueMatchService
         $this->updateTeamStanding($seasonLeagueId, $match->away_team_id, $awayPoints, $awayScore, $homeScore, -$home);
     }
 
+    /**
+     * Bots never answer bonus questions; this repairs completed matches whose bot
+     * selections still carry stray answers saved before that rule was enforced.
+     */
+    public function repairBotBonusPoints(): int
+    {
+        $seasonLeagueIds = collect();
+
+        MatchSelection::query()
+            ->whereHas('answers')
+            ->whereHas('match', fn ($query) => $query->where('status', 'completed'))
+            ->with(['match', 'team.user'])
+            ->get()
+            ->each(function (MatchSelection $selection) use (&$seasonLeagueIds): void {
+                if (! $this->isBot($selection->team)) {
+                    return;
+                }
+
+                $selection->answers()->delete();
+                $selection->update(['points_offensive' => 0, 'points_defensive' => 0]);
+                $seasonLeagueIds->push($selection->match->season_league_id);
+            });
+
+        $seasonLeagueIds = $seasonLeagueIds->unique()->values();
+
+        foreach ($seasonLeagueIds as $seasonLeagueId) {
+            $this->recalculateCompletedMatches((int) $seasonLeagueId);
+            $this->rebuildStandings(SeasonLeague::findOrFail($seasonLeagueId));
+        }
+
+        return $seasonLeagueIds->count();
+    }
+
+    private function recalculateCompletedMatches(int $seasonLeagueId): void
+    {
+        $action = app(CalculateMatchPointsAction::class);
+
+        MatchGame::query()
+            ->where('season_league_id', $seasonLeagueId)
+            ->where('status', 'completed')
+            ->with('selections')
+            ->get()
+            ->each(function (MatchGame $match) use ($action): void {
+                $home = $match->selections->firstWhere('team_id', $match->home_team_id);
+                $away = $match->selections->firstWhere('team_id', $match->away_team_id);
+
+                if ($home === null || $away === null) {
+                    return;
+                }
+
+                $homeTotal = $action->applyDefensivePenalty($home->points_base + $home->points_offensive, $away->points_defensive);
+                $awayTotal = $action->applyDefensivePenalty($away->points_base + $away->points_offensive, $home->points_defensive);
+
+                $home->update(['points_defensive_applied' => $away->points_defensive, 'total_points' => $homeTotal]);
+                $away->update(['points_defensive_applied' => $home->points_defensive, 'total_points' => $awayTotal]);
+                $match->update(['home_score' => $homeTotal, 'away_score' => $awayTotal]);
+            });
+    }
+
     private function rebuildStandings(SeasonLeague $seasonLeague): void
     {
         $seasonLeague->teams()->update([
@@ -151,7 +210,7 @@ class LeagueMatchService
                 'bonus_points' => (int) MatchSelection::query()
                     ->where('team_id', $seasonTeam->team_id)
                     ->whereHas('match', fn ($query) => $query->where('season_league_id', $seasonLeague->id)->where('status', 'completed'))
-                    ->sum(DB::raw('points_offensive + points_defensive_applied')),
+                    ->sum(DB::raw('points_offensive + points_defensive')),
             ]);
         }
     }
