@@ -1,10 +1,12 @@
 <?php
 
+use App\Models\BonusQuestion;
+use App\Models\Competition;
+use App\Models\League;
+use App\Models\LechMatch;
 use App\Models\Season;
 use App\Models\SeasonLeague;
 use App\Models\SeasonTeam;
-use App\Models\Competition;
-use App\Models\LechMatch;
 use App\Models\Team;
 use App\Models\User;
 
@@ -53,6 +55,38 @@ it('shows the assigned typer match in the league round schedule', function () {
     $this->get(route('league.index'))
         ->assertOk()
         ->assertSee('Lech Poznań - Testowy Rywal');
+});
+
+it('uses Swiss league rounds and exposes completed Lech match details', function () {
+    $competition = Competition::create(['name' => 'Szwajcarska Liga', 'slug' => 'szwajcarska-liga']);
+    $match = LechMatch::create([
+        'competition_id' => $competition->id,
+        'round_number' => 1,
+        'opponent' => 'Jagiellonia Białystok',
+        'lech_home' => true,
+        'scheduled_at' => now()->subHour(),
+        'result_home' => 2,
+        'result_away' => 1,
+        'status' => 'completed',
+    ]);
+    BonusQuestion::create([
+        'match_id' => $match->id,
+        'type' => 'offensive',
+        'question_text' => 'Czy Lech strzeli gola?',
+        'correct_answer' => true,
+    ]);
+
+    $league = League::query()->where('level', 11)->firstOrFail();
+    $this->get(route('league.show', $league->slug))
+        ->assertOk()
+        ->assertSee('Kolejka 1')
+        ->assertSee('Jagiellonia Białystok');
+
+    $this->get(route('league.real-match', [$league->slug, $match]))
+        ->assertOk()
+        ->assertSee('2:1')
+        ->assertSee('Czy Lech strzeli gola?')
+        ->assertSee('TAK');
 });
 
 it('does not re-add a fan team to the backyard league once it is promoted elsewhere', function () {
