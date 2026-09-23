@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name') }} | {{ $league->name }} · {{ $match->homeTeam->name }} vs {{ $match->awayTeam->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        .answer-meter { display: inline-flex; gap: 3px; }
+        .answer-meter i { width: 12px; height: 8px; display: block; border: 1px solid #d7a72d; border-radius: 2px; background: #fff4d6; }
+        .answer-meter i.filled { background: #68b879; border-color: #4b9f5d; }
+    </style>
 </head>
 <body>
 <div class="app-shell">
@@ -54,13 +59,13 @@
 
                 <div class="content-grid">
                     <div class="main-column">
-                        @if(auth()->check() && $match->status === 'scheduled' && $match->scheduled_at->isFuture())
+                        @if(auth()->check() && $isParticipant && $match->status === 'scheduled' && $match->scheduled_at->isFuture())
                             <div class="league-panel p-4 mb-4">
                                 <p class="eyebrow mb-2">Typowanie</p>
                                 <h2 class="font-display h4 mb-3">Typuj wynik meczu</h2>
                                 @include('league.partials.prediction-form', ['match' => $match, 'selection' => $selection])
                             </div>
-                        @elseif(auth()->check())
+                        @elseif(auth()->check() && $isParticipant)
                             <div class="league-panel p-4 mb-4">
                                 <p class="eyebrow mb-2">Typy</p>
                                 <h2 class="font-display h4 mb-3">Twój zapisany typ</h2>
@@ -70,12 +75,109 @@
                                     <p class="text-muted-custom mb-0">Nie wytypowałeś tego meczu.</p>
                                 @endif
                             </div>
-                        @else
+                        @elseif(! auth()->check() || ! $isParticipant)
                             <div class="league-panel p-4 mb-4">
-                                <p class="eyebrow mb-2">Publiczny podgląd</p>
-                                <h2 class="font-display h4 mb-3">Zaloguj się, aby typować skład</h2>
-                                <p class="text-muted-custom">Szczegóły meczu, data i terminarz są dostępne bez konta. Typowanie wymaga zalogowanego użytkownika.</p>
-                                <a class="btn btn-primary" href="{{ route('login') }}">Zaloguj się</a>
+                                <p class="eyebrow mb-2">Podgląd typowania</p>
+                                @if(! auth()->check())
+                                    <h2 class="font-display h4 mb-3">Zaloguj się, aby typować</h2>
+                                    <p class="text-muted-custom">Typowanie wymaga zalogowanego użytkownika.</p>
+                                    <a class="btn btn-primary" href="{{ route('login') }}">Zaloguj się</a>
+                                @else
+                                    <h2 class="font-display h4 mb-3">Nie jesteś uczestnikiem tego meczu</h2>
+                                    <p class="text-muted-custom mb-0">Poniżej widzisz stan typowania drużyn biorących udział w spotkaniu.</p>
+                                @endif
+                            </div>
+                        @endif
+
+                        @if($match->status !== 'completed')
+                            <div class="league-panel p-4 mb-4">
+                                <p class="eyebrow mb-2">Stan typowania</p>
+                                <div class="row g-3">
+                                    @foreach([[$match->homeTeam, $homeSelection], [$match->awayTeam, $awaySelection]] as [$matchTeam, $teamSelection])
+                                        @php
+                                            $isBot = str_starts_with(strtolower((string) $matchTeam->user?->email), 'bot.');
+                                            $isOpen = $match->status === 'scheduled' && $match->scheduled_at->isFuture();
+                                        @endphp
+                                        <div class="col-md-6">
+                                            <div class="border rounded-3 p-3 h-100"><strong>{{ $matchTeam->name }}</strong>
+                                                @if($teamSelection)
+                                                    @php
+                                                        $offensiveAnswered = $teamSelection->answers->filter(fn ($answer) => $answer->question?->type === 'offensive' && $answer->answer !== null)->count();
+                                                        $defensiveAnswered = $teamSelection->answers->filter(fn ($answer) => $answer->question?->type === 'defensive' && $answer->answer !== null)->count();
+                                                    @endphp
+                                                    @if($isOpen)
+                                                        <p class="small text-muted-custom mb-0 mt-2">Typ oddany</p>
+                                                    @else
+                                                        <div class="small text-muted-custom mt-2">Ofensywne: {{ $offensiveAnswered }}/5 <span class="answer-meter ms-2">@foreach(range(1, 5) as $meter)<i class="{{ $meter <= $offensiveAnswered ? 'filled' : '' }}"></i>@endforeach</span></div>
+                                                        <div class="small text-muted-custom mt-1">Defensywne: {{ $defensiveAnswered }}/5 <span class="answer-meter ms-2">@foreach(range(1, 5) as $meter)<i class="{{ $meter <= $defensiveAnswered ? 'filled' : '' }}"></i>@endforeach</span></div>
+                                                    @endif
+                                                @else
+                                                    <p class="small text-muted-custom mb-0 mt-2">{{ $isBot ? 'Bot: wynik zostanie wylosowany po rozliczeniu' : 'Użytkownik jeszcze nie typował' }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        @if($match->status === 'completed')
+                            <div class="league-panel p-4 mb-4">
+                                <p class="eyebrow mb-2">Rozliczenie meczu</p>
+                                <h2 class="font-display h4 mb-3">Typy obu drużyn</h2>
+                                <div class="row g-3">
+                                    @foreach([[$match->homeTeam, $homeSelection], [$match->awayTeam, $awaySelection]] as [$matchTeam, $teamSelection])
+                                        @php
+                                            $isBot = str_starts_with(strtolower((string) $matchTeam->user?->email), 'bot.');
+                                            $answersByQuestion = $teamSelection?->answers?->keyBy('league_round_bonus_question_id') ?? collect();
+                                        @endphp
+                                        <div class="col-lg-6">
+                                            <div class="border rounded-3 p-3 h-100">
+                                                <div class="d-flex justify-content-between gap-2 mb-2">
+                                                    <strong>{{ $matchTeam->name }}</strong>
+                                                    @if($isBot)<span class="badge text-bg-secondary">Bot</span>@endif
+                                                </div>
+                                                @if($teamSelection)
+                                                    <p class="mb-1">Typ wyniku: <strong>{{ $teamSelection->home_score }}:{{ $teamSelection->away_score }}</strong></p>
+                                                    <p class="small text-muted-custom mb-2">Punkty za wynik: {{ $teamSelection->points_base }} · bonus ofensywny: {{ $teamSelection->points_offensive }} · razem: {{ $teamSelection->total_points }}</p>
+                                                    @if($isBot)
+                                                        <p class="small text-muted-custom mb-0">Bot otrzymał losowy typ wyniku i nie udzielił odpowiedzi na pytania bonusowe.</p>
+                                                    @else
+                                                        <div class="row g-3 mt-1">
+                                                        @foreach(['offensive' => 'Ofensywne', 'defensive' => 'Defensywne'] as $questionType => $questionTitle)
+                                                            <div class="col-md-6">
+                                                                <strong class="small">Pytania {{ strtolower($questionTitle) }}</strong>
+                                                                <div class="d-grid gap-2 mt-2">
+                                                                    @foreach(($match->leagueRound?->bonusQuestions ?? collect())->where('type', $questionType)->values() as $question)
+                                                                        @php
+                                                                            $answer = $answersByQuestion->get($question->id);
+                                                                            $answerText = $answer?->answer === null ? 'Brak odpowiedzi' : ($answer->answer ? 'TAK' : 'NIE');
+                                                                            $correctText = $question->correct_answer === null ? 'Brak rozstrzygnięcia' : ($question->correct_answer ? 'TAK' : 'NIE');
+                                                                            $answerClass = $answer?->answer === null || $question->correct_answer === null
+                                                                                ? 'btn-outline-warning'
+                                                                                : ($answer->answer === $question->correct_answer ? 'btn-outline-success' : 'btn-outline-danger');
+                                                                            $questionModalId = 'question-'.$match->id.'-'.$teamSelection->id.'-'.$question->id;
+                                                                        @endphp
+                                                                        <button type="button" class="btn btn-sm text-start {{ $answerClass }}" data-bs-toggle="modal" data-bs-target="#{{ $questionModalId }}" title="{{ $question->question_text }}">{{ $loop->iteration }}. {{ $answerText }}</button>
+                                                                        <div class="modal fade" id="{{ $questionModalId }}" tabindex="-1" aria-labelledby="{{ $questionModalId }}-label" aria-hidden="true">
+                                                                            <div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="{{ $questionModalId }}-label">{{ $questionTitle }} {{ $loop->iteration }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button></div><div class="modal-body"><p>{{ $question->question_text }}</p><hr><p class="mb-1"><strong>Odpowiedź typującego:</strong> {{ $answerText }}</p><p class="mb-0"><strong>Poprawna odpowiedź:</strong> {{ $correctText }}</p></div></div></div>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                        </div>
+                                                    @endif
+                                                    @if($teamSelection->points_defensive_applied > 0)
+                                                        <div class="alert alert-warning small mt-3 mb-0">Odjęto {{ $teamSelection->points_defensive_applied }} pkt od dorobku tej drużyny przez bonus defensywny rywala.</div>
+                                                    @endif
+                                                @else
+                                                    <p class="text-muted-custom small mb-0">Brak oddanego typu.</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
                             </div>
                         @endif
                     </div>
