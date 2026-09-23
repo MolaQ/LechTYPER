@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name') }} | {{ $league->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        .promotion-row { background: #eaf7ee !important; }
+        .relegation-row { background: #fff0ef !important; }
+        .promotion-row td:first-child { border-left: 3px solid #3b9b55; }
+        .relegation-row td:first-child { border-left: 3px solid #c95b56; }
+    </style>
 </head>
 <body>
 <div class="app-shell">
@@ -77,7 +83,7 @@
                                     <p class="eyebrow mb-2">Tabela</p>
                                     <h2 class="font-display h4 mb-0">{{ $league->name }}</h2>
                                 </div>
-                                <span class="badge text-bg-light">{{ $standings->count() }} drużyn</span>
+                                <span class="badge text-bg-light">{{ method_exists($standings, 'total') ? $standings->total() : $standings->count() }} drużyn</span>
                             </div>
                             <div class="table-responsive">
                                 <table class="table align-middle mb-0">
@@ -88,21 +94,38 @@
                                             <th>M</th>
                                             <th>PKT</th>
                                             <th>Bilans</th>
+                                            <th>Z</th>
+                                            <th>R</th>
+                                            <th>Bonus</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach($standings as $standing)
-                                            <tr class="{{ $team && $standing->team_id === $team->id ? 'table-primary' : '' }}">
-                                                <td>{{ $loop->iteration }}</td>
+                                            @php
+                                                $position = method_exists($standings, 'firstItem') ? $standings->firstItem() + $loop->index : $loop->iteration;
+                                                $promotionPlaces = (int) $seasonLeague->promotion_places;
+                                                $relegationPlaces = (int) $seasonLeague->relegation_places;
+                                                $promotionClass = $promotionPlaces > 0 && $position <= $promotionPlaces ? 'promotion-row' : '';
+                                                $standingTotal = method_exists($standings, 'total') ? $standings->total() : $standings->count();
+                                                $relegationClass = $relegationPlaces > 0 && $position > $standingTotal - $relegationPlaces ? 'relegation-row' : '';
+                                            @endphp
+                                            <tr class="{{ $team && $standing->team_id === $team->id ? 'table-primary' : ($promotionClass ?: $relegationClass) }}">
+                                                <td>{{ $position }}</td>
                                                 <td>{{ $standing->team->name }}</td>
                                                 <td>{{ $standing->played }}</td>
                                                 <td><strong>{{ $standing->points }}</strong></td>
                                                 <td>{{ $standing->score_for }}:{{ $standing->score_against }}</td>
+                                                <td>{{ $standing->wins }}</td>
+                                                <td>{{ $standing->draws }}</td>
+                                                <td>{{ $standing->bonus_points }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
                             </div>
+                            @if(method_exists($standings, 'hasPages') && $standings->hasPages())
+                                <div class="mt-3">{{ $standings->links() }}</div>
+                            @endif
                         </div>
 
                         <div class="league-panel fixture-panel p-4">
@@ -113,13 +136,19 @@
                                     @php
                                         $roundMatches = $matches->where('round_number', $seasonRound->round_number);
                                         $typerMatch = $typerMatchesByRound->get($seasonRound->round_number);
-                                        $realMatchLabel = $seasonRound->realMatch
-                                            ? $seasonRound->realMatch->home_team.' - '.$seasonRound->realMatch->away_team
-                                            : ($typerMatch ? ($typerMatch->lech_home ? 'Lech Poznań - '.$typerMatch->opponent : $typerMatch->opponent.' - Lech Poznań') : null);
+                                        $assignedRealMatch = $seasonRound->realMatch ?? null;
+                                        $leagueRealMatchLabel = $seasonRound->real_home_team
+                                            ? $seasonRound->real_home_team.' - '.$seasonRound->real_away_team
+                                            : null;
+                                        $realMatchLabel = $assignedRealMatch
+                                            ? $assignedRealMatch->home_team.' - '.$assignedRealMatch->away_team
+                                            : ($leagueRealMatchLabel
+                                                ? $leagueRealMatchLabel
+                                                : ($typerMatch ? ($typerMatch->lech_home ? 'Lech Poznań - '.$typerMatch->opponent : $typerMatch->opponent.' - Lech Poznań') : null));
                                     @endphp
                                     <div class="border rounded-3 p-3">
-                                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2"><strong>Kolejka {{ $seasonRound->round_number }}</strong><span class="small text-muted-custom">{{ $realMatchLabel ?? 'Mecz Lecha nieprzypisany' }}</span></div>
-                                        @if($seasonRound->realMatch || $typerMatch)<small class="text-muted-custom d-block mb-2">{{ $seasonRound->realMatch?->competition ?? $typerMatch?->competition?->name }} · źródło punktacji typów</small>@endif
+                                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2"><strong>Kolejka {{ $seasonRound->round_number }}</strong>@if($typerMatch)<a class="small text-muted-custom" href="{{ route('league.real-match', [$league->slug, $typerMatch->id]) }}">{{ $realMatchLabel }}</a>@else<span class="small text-muted-custom">{{ $realMatchLabel ?? 'Mecz Lecha nieprzypisany' }}</span>@endif</div>
+                                        @if($assignedRealMatch || $leagueRealMatchLabel || $typerMatch)<small class="text-muted-custom d-block mb-2">{{ $assignedRealMatch?->competition ?? $seasonRound->competition ?? $typerMatch?->competition?->name }} · źródło punktacji typów</small>@endif
                                         <div class="d-grid gap-2">
                                             @forelse($roundMatches as $match)
                                                 <a href="{{ route('league.match', [$league->slug, $match->id]) }}" class="match-row d-flex justify-content-between align-items-center p-2 rounded-3 border text-decoration-none">
@@ -129,7 +158,7 @@
                                                         @if($match->status === 'scheduled')
                                                             <span class="badge text-bg-light mt-1">Typowanie</span>
                                                         @else
-                                                            <span class="badge text-bg-success mt-1">Sfinalizowano · {{ $match->home_score }}:{{ $match->away_score }}</span>
+                                                            <span class="badge text-bg-success mt-1">{{ $match->home_score }}:{{ $match->away_score }}</span>
                                                         @endif
                                                     </div>
                                                 </a>
