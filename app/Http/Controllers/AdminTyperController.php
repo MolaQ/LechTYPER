@@ -13,20 +13,37 @@ use App\Models\MatchSelection;
 use App\Models\MatchSelectionAnswer;
 use App\Models\Prediction;
 use App\Models\Season;
+use App\Models\SeasonRound;
 use App\Models\Team;
 use App\Services\LeagueMatchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AdminTyperController extends Controller
 {
+    private const COMPETITIONS = [
+        'Rozgrywki Ligowe',
+        'Puchar Polski',
+        'Liga Mistrzów',
+        'Liga Europy',
+        'Liga Konferencji',
+        'Mecz Towarzyski',
+    ];
+
     public function index(): View
     {
+        $season = Season::query()->where('status', 'active')->firstOrFail();
+        $competitions = collect(self::COMPETITIONS)->map(fn (string $name): Competition => Competition::query()->firstOrCreate(
+            ['slug' => Str::slug($name)],
+            ['name' => $name],
+        ));
+
         return view('admin.typer.index', [
-            'matches' => LechMatch::query()->with(['competition', 'bonusQuestions.poolQuestion'])->orderByDesc('scheduled_at')->get(),
-            'competitions' => Competition::query()->orderBy('name')->get(),
-            'questions' => BonusQuestionPool::query()->where('is_active', true)->orderBy('question_text')->get(),
+            'season' => $season,
+            'matches' => LechMatch::query()->where('season_id', $season->id)->with(['competition', 'bonusQuestions'])->orderByDesc('scheduled_at')->get(),
+            'competitions' => $competitions,
         ]);
     }
 
@@ -40,8 +57,21 @@ class AdminTyperController extends Controller
             'scheduled_at' => ['required', 'date'],
         ]);
 
+        if ($match->season_id !== null && $data['round_number'] !== null) {
+            abort_unless(
+                SeasonRound::query()
+                    ->where('season_id', $match->season_id)
+                    ->where('round_number', $data['round_number'])
+                    ->exists(),
+                422,
+                'Wybrana kolejka nie należy do sezonu tego meczu.',
+            );
+        }
+
+        $season = Season::query()->where('status', 'active')->firstOrFail();
         $match = LechMatch::query()->create([
             'competition_id' => $data['competition_id'],
+            'season_id' => $season->id,
             'round_number' => $data['round_number'] ?? null,
             'opponent' => $data['opponent'],
             'lech_home' => (bool) $data['lech_home'],
@@ -130,8 +160,11 @@ class AdminTyperController extends Controller
             ->get()
             ->each(function (LeagueRound $round) use ($match, $homeScore, $awayScore): void {
                 $correctAnswers = [];
+                $sourceQuestionsByType = $match->bonusQuestions->groupBy('type')->map(fn ($questions) => $questions->values());
+                $roundQuestionIndexes = ['offensive' => 0, 'defensive' => 0];
                 foreach ($round->bonusQuestions as $question) {
-                    $sourceQuestion = $match->bonusQuestions->firstWhere('question_text', $question->question_text);
+                    $questionIndex = $roundQuestionIndexes[$question->type]++;
+                    $sourceQuestion = $sourceQuestionsByType->get($question->type, collect())->get($questionIndex);
                     $correctAnswers[$question->id] = $sourceQuestion?->correct_answer;
                 }
 
@@ -147,6 +180,7 @@ class AdminTyperController extends Controller
         foreach ($round->matches as $leagueMatch) {
             $teamIds = [$leagueMatch->home_team_id, $leagueMatch->away_team_id];
             $predictions = $sourceMatch->predictions()->with('user')->get();
+            $sourceQuestionsByType = $sourceMatch->bonusQuestions->groupBy('type')->map(fn ($questions) => $questions->values());
 
             foreach ($predictions as $prediction) {
                 $teamId = (int) Team::query()->where('user_id', $prediction->user_id)->value('id');
@@ -163,8 +197,10 @@ class AdminTyperController extends Controller
                     ],
                 );
 
+                $roundQuestionIndexes = ['offensive' => 0, 'defensive' => 0];
                 foreach ($round->bonusQuestions as $question) {
-                    $sourceQuestion = $sourceMatch->bonusQuestions->firstWhere('question_text', $question->question_text);
+                    $questionIndex = $roundQuestionIndexes[$question->type]++;
+                    $sourceQuestion = $sourceQuestionsByType->get($question->type, collect())->get($questionIndex);
                     $answer = $sourceQuestion === null
                         ? null
                         : $sourceQuestion->answers()->where('user_id', $prediction->user_id)->value('answer');
@@ -179,7 +215,7 @@ class AdminTyperController extends Controller
 
     public function predictions(LechMatch $match): View
     {
-        $match->load(['competition', 'bonusQuestions']);
+        $match->load(['competition', 'season', 'bonusQuestions.poolQuestion']);
         $predictions = Prediction::query()
             ->where('match_id', $match->id)
             ->with(['user', 'answers.question'])
@@ -191,6 +227,8 @@ class AdminTyperController extends Controller
             'predictions' => $predictions,
             'offensiveQuestions' => $match->bonusQuestions->where('type', 'offensive')->values(),
             'defensiveQuestions' => $match->bonusQuestions->where('type', 'defensive')->values(),
+            'questions' => BonusQuestionPool::query()->where('is_active', true)->orderBy('question_text')->get(),
+            'seasonRounds' => $match->season?->seasonRounds ?? collect(),
         ]);
     }
 }
